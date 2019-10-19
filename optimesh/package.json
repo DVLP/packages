@@ -9,7 +9,8 @@
   "scripts": {
     "build": "rollup -c",
     "test": "jest src",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "publish": "node --experimental-modules publish.mjs"
   },
   "author": "DVLP",
   "license": "MIT",
