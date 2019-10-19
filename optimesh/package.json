@@ -1,0 +1,28 @@
+{
+  "name": "optimesh",
+  "version": "1.0.2",
+  "description": "OptiMesh reduces meshes resolution to optimize performance, memory usage and download size",
+  "cdn": "https://cdn.jsdelivr.net/npm/optimesh@1.0.2/build/main.js",
+  "main": "build/main.js",
+  "jsnext:main": "build/main.module.js",
+  "module": "build/main.module.js",
+  "scripts": {
+    "build": "rollup -c",
+    "test": "jest src",
+    "lint": "eslint src"
+  },
+  "author": "DVLP",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/core": "^7.6.4",
+    "@babel/plugin-transform-modules-commonjs": "^7.6.0",
+    "@babel/preset-env": "^7.6.3",
+    "rollup": "^1.25.0"
+  },
+  "eslintConfig": {
+    "extends": "mdcs"
+  },
+  "peerDependencies": {
+    "dvlp-three": "https://github.com/DVLP/three.js/tarball/optim-rebase-may"
+  }
+}
