@@ -10,7 +10,7 @@
     "build": "rollup -c",
     "test": "jest src",
     "lint": "eslint src",
-    "publish": "(git diff-index --quiet HEAD -- || echo \"There are uncommitted changes\";) && git add package.json && node --experimental-modules publish.mjs && git commit -m \"bump and publish\" && npm pulish"
+    "publish": "(git diff-index --quiet HEAD -- || echo \"There are uncommitted changes\";) && node --experimental-modules publish.mjs && npm publish && git add package.json && git commit -m \"bump and publish\""
   },
   "author": "DVLP",
   "license": "MIT",
