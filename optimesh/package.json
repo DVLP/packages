@@ -1,8 +1,8 @@
 {
   "name": "optimesh",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "description": "OptiMesh reduces meshes resolution to optimize performance, memory usage and download size",
-  "cdn": "https://cdn.jsdelivr.net/npm/optimesh@1.0.6/build/main.js",
+  "cdn": "https://cdn.jsdelivr.net/npm/optimesh@1.0.8/build/main.js",
   "main": "build/main.js",
   "jsnext:main": "build/main.module.js",
   "module": "build/main.module.js",
@@ -10,8 +10,8 @@
     "build": "rollup -c",
     "test": "jest src",
     "lint": "eslint src",
-    "prepublish": "(git diff-index --quiet HEAD -- || echo \"There are uncommitted changes\";) && node --experimental-modules publish.mjs",
-    "postpublish": "git add package.json && git commit -m \"bump and publish\""
+    "prepublish": "(git diff-index --quiet HEAD -- || (echo \"There are uncommitted changes\"; && exit;)) && node --experimental-modules publish.mjs",
+    "postpublish": "git add package.json && git commit -m \"bump and publish %npm_package_version%\" && git push"
   },
   "author": "DVLP",
   "license": "MIT",
