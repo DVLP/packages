@@ -3,7 +3,7 @@ import {
   BufferAttribute,
   Vector3
 } from 'dvlp-three';
-import { addToSBWithOversize, emptyOversizedContainer, emptyOversizedContainerIndex, removeFieldFromSBWithOversize } from './BufferArrayManager';
+import { addToSBWithOversize, emptyOversizedContainer, emptyOversizedContainerIndex, removeFieldFromSBWithOversize, zeroFill } from './BufferArrayManager';
 import * as CostWorker from './Worker/simplify.worker.js';
 
 import { getIndexedPositions } from './Utils';
@@ -45,10 +45,10 @@ export function createWorkers() {
     });
   }
 }
-createWorkers();
 
 export function killWorkers() {
   preloadedWorkers.forEach(w => w.terminate());
+  preloadedWorkers.length = 0;
 }
 
 function discardSimpleGeometry(geometry) {
@@ -82,6 +82,10 @@ export function meshSimplifier(
       preserveTexture && geometry.attributes.uv && geometry.attributes.uv.count;
 
     // console.time('Mesh simplification');
+    if (geometry.attributes.position.count < 50) {
+      console.warn('Less than 50 vertices, returning');
+      resolveTop(geometry);
+    }
 
     new Promise((resolve2, reject2) => {
       requestFreeWorkers(
