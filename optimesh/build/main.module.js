@@ -5718,4 +5718,4 @@ const OptiMesh = {
 var main = { OptiMesh };
 
 export default main;
-export { editorPlugin, meshSimplifier, openOptimizer };
+export { createWorkers, editorPlugin, meshSimplifier, openOptimizer };

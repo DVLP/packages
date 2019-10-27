@@ -5718,6 +5718,7 @@ var optimesh = (function (exports, dvlpThree) {
 
 	var main = { OptiMesh };
 
+	exports.createWorkers = createWorkers;
 	exports.default = main;
 	exports.editorPlugin = editorPlugin;
 	exports.meshSimplifier = meshSimplifier;

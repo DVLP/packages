@@ -1,4 +1,4 @@
-import { meshSimplifier } from './MeshSimplifier';
+import { meshSimplifier, createWorkers } from './MeshSimplifier';
 import { openOptimizer } from './OptimPopup';
 
 function editorAction(editor) {
@@ -44,3 +44,4 @@ export default { OptiMesh };
 export { meshSimplifier };
 export { editorPlugin };
 export { openOptimizer };
+export { createWorkers };
