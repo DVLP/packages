@@ -29,10 +29,11 @@ var simplify_worker = () => {
   let OVERSIZE_CONTAINER_CAPACITY = 0;
   let reportWorkerId = 0;
   let reportTotalWorkers = 0;
-  let reattemptIntervalMs = 500;
+  let reattemptIntervalMs = 250;
   let reattemptIntervalCount = 20;
   let currentReqId = -1;
   let previousDataArrayViews = null;
+  let modelSize = 0;
 
   self.onmessage = function(e) {
     var functionName = e.data.task;
@@ -91,6 +92,7 @@ var simplify_worker = () => {
     reportWorkerId = workerIndex;
     reportTotalWorkers = totalWorkers;
     currentReqId = data.reqId;
+    modelSize = data.modelSize;
 
     let range = Math.floor(
       dataArrayViews.verticesView.length / 3 / totalWorkers
@@ -2098,6 +2100,7 @@ function discardSimpleGeometry(geometry) {
 function meshSimplifier(
   geometry,
   percentage,
+  modelSize,
   preserveTexture = true,
   attempt = 0,
   resolveTop
@@ -2127,6 +2130,7 @@ function meshSimplifier(
         workers,
         geometry,
         percentage,
+        modelSize,
         preserveTexture,
         geometry
       )
@@ -2473,6 +2477,7 @@ function sendWorkToWorkers(
   workers,
   bGeometry,
   percentage,
+  modelSize,
   preserveTexture,
   geometry
 ) {
@@ -2521,6 +2526,7 @@ function sendWorkToWorkers(
         task: 'load',
         id: w.id,
         workerIndex: i,
+        modelSize: modelSize,
         totalWorkers: workers.length,
         verticesView: dataArrays.verticesView,
         facesView: dataArrays.facesView,
@@ -5567,9 +5573,19 @@ function setupRenderer(scene, camera, controls) {
 
 function recursivelyOptimize(model, controls) {
   if (model.isMesh) {
+    if (!model.geometry.boundingBox) {
+      model.geometry.computeBoundingBox();
+    }
+    const box = model.geometry.boundingBox;
+    const modelSize = Math.max(
+      (box.max.x - box.min.x) * model.scale.x,
+      (box.max.y - box.min.y) * model.scale.y,
+      (box.max.z - box.min.z) * model.scale.z
+    );
     meshSimplifier(
       model.originalGeometry || model.geometry,
       controls.optimizationLevel,
+      modelSize,
       controls.preserveTexture
     ).then(newGeo => {
       model.geometry = newGeo;

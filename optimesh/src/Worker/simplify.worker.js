@@ -4,10 +4,11 @@ export default () => {
   let OVERSIZE_CONTAINER_CAPACITY = 0;
   let reportWorkerId = 0;
   let reportTotalWorkers = 0;
-  let reattemptIntervalMs = 500;
+  let reattemptIntervalMs = 250;
   let reattemptIntervalCount = 20;
   let currentReqId = -1;
   let previousDataArrayViews = null;
+  let modelSize = 0;
 
   self.onmessage = function(e) {
     var functionName = e.data.task;
@@ -78,6 +79,7 @@ export default () => {
     reportWorkerId = workerIndex;
     reportTotalWorkers = totalWorkers;
     currentReqId = data.reqId;
+    modelSize = data.modelSize;
 
     let range = Math.floor(
       dataArrayViews.verticesView.length / 3 / totalWorkers
@@ -914,6 +916,10 @@ export default () => {
 
     var i,
       il = vertexFaceCount;
+
+    // FIND if we're pulling an edge
+      // end of collapsed edge should not end with 
+      // edges around moved vertex must have 2 triangles on both sides
 
     // find the 'sides' triangles that are on the edge uv
     for (i = 0; i < il; i++) {

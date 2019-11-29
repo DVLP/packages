@@ -69,6 +69,7 @@ function discardSimpleGeometry(geometry) {
 export function meshSimplifier(
   geometry,
   percentage,
+  modelSize,
   preserveTexture = true,
   attempt = 0,
   resolveTop
@@ -98,6 +99,7 @@ export function meshSimplifier(
         workers,
         geometry,
         percentage,
+        modelSize,
         preserveTexture,
         geometry
       )
@@ -140,6 +142,7 @@ export function meshSimplifier(
             meshSimplifier(
               geometry,
               percentage,
+              modelSize,
               (preserveTexture = true),
               attemptCount,
               resolveTop || resolve
@@ -907,7 +910,8 @@ function computeEdgeCollapseCost(uId, vId, dataArrayViews) {
   var costUV = computeUVsCost(uId, vId, dataArrayViews);
 
   var amt =
-    edgelengthSquared * curvature * curvature +
+    edgelengthSquared + // edge length should take into account model size
+    curvature * curvature +
     borders * borders +
     costUV * costUV;
 
@@ -1310,6 +1314,7 @@ function sendWorkToWorkers(
   workers,
   bGeometry,
   percentage,
+  modelSize,
   preserveTexture,
   geometry
 ) {
@@ -1358,6 +1363,7 @@ function sendWorkToWorkers(
         task: 'load',
         id: w.id,
         workerIndex: i,
+        modelSize: modelSize,
         totalWorkers: workers.length,
         verticesView: dataArrays.verticesView,
         facesView: dataArrays.facesView,

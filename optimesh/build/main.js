@@ -30,10 +30,11 @@ var optimesh = (function (exports, dvlpThree) {
 	  let OVERSIZE_CONTAINER_CAPACITY = 0;
 	  let reportWorkerId = 0;
 	  let reportTotalWorkers = 0;
-	  let reattemptIntervalMs = 500;
+	  let reattemptIntervalMs = 250;
 	  let reattemptIntervalCount = 20;
 	  let currentReqId = -1;
 	  let previousDataArrayViews = null;
+	  let modelSize = 0;
 
 	  self.onmessage = function(e) {
 	    var functionName = e.data.task;
@@ -92,6 +93,7 @@ var optimesh = (function (exports, dvlpThree) {
 	    reportWorkerId = workerIndex;
 	    reportTotalWorkers = totalWorkers;
 	    currentReqId = data.reqId;
+	    modelSize = data.modelSize;
 
 	    let range = Math.floor(
 	      dataArrayViews.verticesView.length / 3 / totalWorkers
@@ -2099,6 +2101,7 @@ var optimesh = (function (exports, dvlpThree) {
 	function meshSimplifier(
 	  geometry,
 	  percentage,
+	  modelSize,
 	  preserveTexture = true,
 	  attempt = 0,
 	  resolveTop
@@ -2128,6 +2131,7 @@ var optimesh = (function (exports, dvlpThree) {
 	        workers,
 	        geometry,
 	        percentage,
+	        modelSize,
 	        preserveTexture,
 	        geometry
 	      )
@@ -2474,6 +2478,7 @@ var optimesh = (function (exports, dvlpThree) {
 	  workers,
 	  bGeometry,
 	  percentage,
+	  modelSize,
 	  preserveTexture,
 	  geometry
 	) {
@@ -2522,6 +2527,7 @@ var optimesh = (function (exports, dvlpThree) {
 	        task: 'load',
 	        id: w.id,
 	        workerIndex: i,
+	        modelSize: modelSize,
 	        totalWorkers: workers.length,
 	        verticesView: dataArrays.verticesView,
 	        facesView: dataArrays.facesView,
@@ -5568,9 +5574,19 @@ var optimesh = (function (exports, dvlpThree) {
 
 	function recursivelyOptimize(model, controls) {
 	  if (model.isMesh) {
+	    if (!model.geometry.boundingBox) {
+	      model.geometry.computeBoundingBox();
+	    }
+	    const box = model.geometry.boundingBox;
+	    const modelSize = Math.max(
+	      (box.max.x - box.min.x) * model.scale.x,
+	      (box.max.y - box.min.y) * model.scale.y,
+	      (box.max.z - box.min.z) * model.scale.z
+	    );
 	    meshSimplifier(
 	      model.originalGeometry || model.geometry,
 	      controls.optimizationLevel,
+	      modelSize,
 	      controls.preserveTexture
 	    ).then(newGeo => {
 	      model.geometry = newGeo;

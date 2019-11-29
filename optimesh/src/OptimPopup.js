@@ -173,9 +173,19 @@ function setupRenderer(scene, camera, controls) {
 
 function recursivelyOptimize(model, controls) {
   if (model.isMesh) {
+    if (!model.geometry.boundingBox) {
+      model.geometry.computeBoundingBox();
+    }
+    const box = model.geometry.boundingBox;
+    const modelSize = Math.max(
+      (box.max.x - box.min.x) * model.scale.x,
+      (box.max.y - box.min.y) * model.scale.y,
+      (box.max.z - box.min.z) * model.scale.z
+    );
     meshSimplifier(
       model.originalGeometry || model.geometry,
       controls.optimizationLevel,
+      modelSize,
       controls.preserveTexture
     ).then(newGeo => {
       model.geometry = newGeo;
