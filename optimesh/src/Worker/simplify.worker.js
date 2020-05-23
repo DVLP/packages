@@ -1537,16 +1537,16 @@ export default () => {
       // looks what's happening in CONSOLE.ASSERT
       // dataArrayViews.costStore[nextVertexId] = 9999;
     }
-    console.log(
-      'Worker ',
-      // workerIndex,
-      ' removed ',
-      collapsedCount,
-      ' / ',
-      howManyToRemove,
-      ' / ',
-      dataArrayViews.verticesView.length / 3
-    );
+    // console.log(
+    //   'Worker ',
+    //   // workerIndex,
+    //   ' removed ',
+    //   collapsedCount,
+    //   ' / ',
+    //   howManyToRemove,
+    //   ' / ',
+    //   dataArrayViews.verticesView.length / 3
+    // );
   }
 
   function minimumCostEdge(from, to, skip, dataArrayViews) {

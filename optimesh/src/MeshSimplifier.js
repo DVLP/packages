@@ -1291,12 +1291,12 @@ function requestFreeWorkers(workers, verticesLength, onWorkersReady) {
   // limit to MAX_WORKERS_PER_OBJECT
   workersAmount = Math.min(MAX_WORKERS_PER_OBJECT, workersAmount);
 
-  console.log(
-    'requesting workers',
-    workersAmount,
-    workers.length,
-    workers.filter(w => w.free).length
-  );
+  // console.log(
+  //   'requesting workers',
+  //   workersAmount,
+  //   workers.length,
+  //   workers.filter(w => w.free).length
+  // );
 
   // wait for at least 2
   if (workersAmount < 1) {
@@ -1549,14 +1549,13 @@ function createNewBufferGeometry(
       }
     ];
 
-
     Object.keys(geometry.attributes).forEach(oldAttribute => {
       const attrib = attributes.find(el => el.name === oldAttribute);
       if(!attrib) {
-        console.warn('Attribute cannot be copied', oldAttribute);
+        console.warn('Attribute copy not supported(ignore instanced, they will be copied later) in ', geometry.name, ': ', oldAttribute);
         return;
       }
-      
+
       const reindexedAttribute = reindexAttribute(attrib.array, mapOldToNewIndex, attrib.itemSize);
       geo.addAttribute(attrib.name, new BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
       // const bufferAttribute = new Float32Array(faceCount * 3 * attrib.itemSize);
