@@ -2,7 +2,8 @@ import { meshSimplifier, killWorkers, createWorkers } from './MeshSimplifier';
 // import OrbitControls from './components/orbitControls.js';
 // import Loader from './components/Loader.js';
 import * as dat from 'dat.gui';
-import { AmbientLight, BoxHelper, Color, HemisphereLight, OrbitControls, PerspectiveCamera, Scene, SpotLight, WebGLRenderer } from 'dvlp-three';
+import { AmbientLight, BoxHelper, Color, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer } from 'dvlp-three';
+// import { OrbitControls } from 'dvlp-three/examples/jsm/controls/OrbitControls.js';
 
 var camera, ocontrols, modelGroup, modelOptimized, modelMaxSize, fileLoader, close, done;
 
@@ -270,12 +271,12 @@ function setupNewObject(scene, obj, controls, domElement) {
 
   camera.position.set(0, box.max.y - box.min.y, Math.abs(modelMaxSize * 3));
 
-  ocontrols = new OrbitControls(camera, domElement);
-  ocontrols.target.set(2.5, (box.max.y - box.min.y) / 2, 0);
+  // ocontrols = new OrbitControls(camera, domElement);
+  // ocontrols.target.set(2.5, (box.max.y - box.min.y) / 2, 0);
 
   optimizeModel(controls);
 
-  ocontrols.update();
+  // ocontrols.update();
 }
 // function setupDropzone(scene) {
 //   document.addEventListener('dragover', handleDragOver, false);

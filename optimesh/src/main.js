@@ -36,12 +36,11 @@ const editorPlugin = {
 };
 
 const OptiMesh = {
+  createWorkers,
   meshSimplifier,
-  editorPlugin
+  editorPlugin,
+  openOptimizer
 };
 
 export default { OptiMesh };
-export { meshSimplifier };
-export { editorPlugin };
-export { openOptimizer };
-export { createWorkers };
+export { createWorkers, meshSimplifier, editorPlugin, openOptimizer };

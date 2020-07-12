@@ -908,6 +908,10 @@ var optimesh = (function (exports, dvlpThree) {
 	    var i,
 	      il = vertexFaceCount;
 
+	    // FIND if we're pulling an edge
+	      // end of collapsed edge should not end with 
+	      // edges around moved vertex must have 2 triangles on both sides
+
 	    // find the 'sides' triangles that are on the edge uv
 	    for (i = 0; i < il; i++) {
 	      var faceId = getFaceIdByVertexAndIndex(uId, i, dataArrayViews);
@@ -1356,30 +1360,6 @@ var optimesh = (function (exports, dvlpThree) {
 	    var z = howManyToRemove;
 	    var skip = 0;
 
-	    // const costsOrdered = new Float32Array(vertices.length);
-
-	    // for (var i = from; i < to; i++) {
-	    //   // costs[i] = vertices[i].collapseCost;
-	    //   costsOrdered[i] = costStore[i]; // vertices[i].collapseCost;
-	    // }
-
-	    // costsOrdered.sort();
-
-	    // let current = 0;
-	    // function getNext() {
-	    //   const vertex = vertices[costStore.indexOf(costsOrdered[current])];
-	    //   console.log(vertex && vertex.id);
-
-	    //   current++;
-
-	    //   if (!vertex) {
-	    //     return getNext();
-	    //   }
-	    //   return vertex;
-	    // }
-
-	    let collapsedCount = 0;
-
 	    while (z--) {
 	      // after skipping 30 start again
 	      // WATNING: this causes infonite loop
@@ -1431,22 +1411,21 @@ var optimesh = (function (exports, dvlpThree) {
 	      }
 	      // WARNING: don't reset skip if any kind of failure happens above
 	      skip = 0;
-	      collapsedCount++;
 
 	      // TEMO: this kind of fixes but breaks everything
 	      // looks what's happening in CONSOLE.ASSERT
 	      // dataArrayViews.costStore[nextVertexId] = 9999;
 	    }
-	    console.log(
-	      'Worker ',
-	      // workerIndex,
-	      ' removed ',
-	      collapsedCount,
-	      ' / ',
-	      howManyToRemove,
-	      ' / ',
-	      dataArrayViews.verticesView.length / 3
-	    );
+	    // console.log(
+	    //   'Worker ',
+	    //   // workerIndex,
+	    //   ' removed ',
+	    //   collapsedCount,
+	    //   ' / ',
+	    //   howManyToRemove,
+	    //   ' / ',
+	    //   dataArrayViews.verticesView.length / 3
+	    // );
 	  }
 
 	  function minimumCostEdge(from, to, skip, dataArrayViews) {
@@ -2114,7 +2093,7 @@ var optimesh = (function (exports, dvlpThree) {
 	    preserveTexture =
 	      preserveTexture && geometry.attributes.uv && geometry.attributes.uv.count;
 
-	    // console.time('Mesh simplification');
+	    console.time('Mesh simplification');
 	    if (geometry.attributes.position.count < 50) {
 	      console.warn('Less than 50 vertices, returning');
 	      resolveTop(geometry);
@@ -2446,6 +2425,10 @@ var optimesh = (function (exports, dvlpThree) {
 	    Math.round(verticesLength / minVerticesPerWorker)
 	  );
 
+	  if (!workers.length) {
+	    console.error('Workers not created. Call createWorkers at the beginning');
+	  }
+
 	  // limit to workers with free flag
 	  let workersAmount = Math.min(
 	    Math.min(workers.filter(w => w.free).length, maxWorkers),
@@ -2455,12 +2438,12 @@ var optimesh = (function (exports, dvlpThree) {
 	  // limit to MAX_WORKERS_PER_OBJECT
 	  workersAmount = Math.min(MAX_WORKERS_PER_OBJECT, workersAmount);
 
-	  console.log(
-	    'requesting workers',
-	    workersAmount,
-	    workers.length,
-	    workers.filter(w => w.free).length
-	  );
+	  // console.log(
+	  //   'requesting workers',
+	  //   workersAmount,
+	  //   workers.length,
+	  //   workers.filter(w => w.free).length
+	  // );
 
 	  // wait for at least 2
 	  if (workersAmount < 1) {
@@ -2672,7 +2655,7 @@ var optimesh = (function (exports, dvlpThree) {
 	    faceCount++;
 	  }
 
-	  console.log('Faces reduction from : ', faces.length / 3, 'to', faceCount);
+	  // console.log('Faces reduction from : ', faces.length / 3, 'to', faceCount);
 	  var positions = new Float32Array(faceCount * 9); // faces * 3 vertices * vector3
 	  var normals = new Float32Array(faceCount * 9);
 	  var skinWeightArr = new Float32Array(faceCount * 12);
@@ -2713,16 +2696,15 @@ var optimesh = (function (exports, dvlpThree) {
 	      }
 	    ];
 
-
 	    Object.keys(geometry.attributes).forEach(oldAttribute => {
 	      const attrib = attributes.find(el => el.name === oldAttribute);
 	      if(!attrib) {
-	        console.warn('Attribute cannot be copied', oldAttribute);
+	        console.warn('Attribute copy not supported(ignore instanced, they will be copied later) in ', geometry.name, ': ', oldAttribute);
 	        return;
 	      }
-	      
+
 	      const reindexedAttribute = reindexAttribute(attrib.array, mapOldToNewIndex, attrib.itemSize);
-	      geo.addAttribute(attrib.name, new dvlpThree.BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
+	      geo.setAttribute(attrib.name, new dvlpThree.BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
 	      // const bufferAttribute = new Float32Array(faceCount * 3 * attrib.itemSize);
 	      // count = 0;
 	      // for (i = 0; i < faces.length / 3; i++) {
@@ -2749,7 +2731,7 @@ var optimesh = (function (exports, dvlpThree) {
 	      //   count * 3 * attrib.itemSize
 	      // );
 	      // bufferAttributeShrunk.set(bufferAttribute);
-	      // geo.addAttribute(
+	      // geo.setAttribute(
 	      //   attrib.name,
 	      //   new BufferAttribute(bufferAttributeShrunk, attrib.itemSize)
 	      // );
@@ -2807,22 +2789,22 @@ var optimesh = (function (exports, dvlpThree) {
 	    : count * 3 * 3;
 
 	  if (!geometry.index) {
-	    geo.addAttribute('position', new dvlpThree.BufferAttribute(positions, 3));
+	    geo.setAttribute('position', new dvlpThree.BufferAttribute(positions, 3));
 
 	    if (normals.length > 0) {
-	      geo.addAttribute('normal', new dvlpThree.BufferAttribute(normals, 3));
+	      geo.setAttribute('normal', new dvlpThree.BufferAttribute(normals, 3));
 	    }
 
 	    if (uvs.length > 0) {
-	      geo.addAttribute('uv', new dvlpThree.BufferAttribute(uvs, 2));
+	      geo.setAttribute('uv', new dvlpThree.BufferAttribute(uvs, 2));
 	    }
 
 	    if (skinIndexArr.length > 0) {
-	      geo.addAttribute('skinIndex', new dvlpThree.BufferAttribute(skinIndexArr, 4));
+	      geo.setAttribute('skinIndex', new dvlpThree.BufferAttribute(skinIndexArr, 4));
 	    }
 
 	    if (skinWeightArr.length > 0) {
-	      geo.addAttribute('skinWeight', new dvlpThree.BufferAttribute(skinWeightArr, 4));
+	      geo.setAttribute('skinWeight', new dvlpThree.BufferAttribute(skinWeightArr, 4));
 	    }
 	  }
 
@@ -5405,6 +5387,8 @@ var optimesh = (function (exports, dvlpThree) {
 	}
 	var GUI$1 = GUI;
 
+	// import { OrbitControls } from 'dvlp-three/examples/jsm/controls/OrbitControls.js';
+
 	var camera, ocontrols, modelGroup, modelOptimized, modelMaxSize, fileLoader, close, done;
 
 	function openOptimizer (model, onDone) {
@@ -5413,7 +5397,7 @@ var optimesh = (function (exports, dvlpThree) {
 	  done = onDone;
 
 	  createWorkers();
-	  setupNewObject(scene, model, controls, webglContainer);
+	  setupNewObject(scene, model, controls);
 	}
 
 	function createDOM () {
@@ -5671,12 +5655,12 @@ var optimesh = (function (exports, dvlpThree) {
 
 	  camera.position.set(0, box.max.y - box.min.y, Math.abs(modelMaxSize * 3));
 
-	  ocontrols = new dvlpThree.OrbitControls(camera, domElement);
-	  ocontrols.target.set(2.5, (box.max.y - box.min.y) / 2, 0);
+	  // ocontrols = new OrbitControls(camera, domElement);
+	  // ocontrols.target.set(2.5, (box.max.y - box.min.y) / 2, 0);
 
 	  optimizeModel(controls);
 
-	  ocontrols.update();
+	  // ocontrols.update();
 	}
 	// function setupDropzone(scene) {
 	//   document.addEventListener('dragover', handleDragOver, false);
@@ -5728,8 +5712,10 @@ var optimesh = (function (exports, dvlpThree) {
 	};
 
 	const OptiMesh = {
+	  createWorkers,
 	  meshSimplifier,
-	  editorPlugin
+	  editorPlugin,
+	  openOptimizer
 	};
 
 	var main = { OptiMesh };

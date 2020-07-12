@@ -82,7 +82,7 @@ export function meshSimplifier(
     preserveTexture =
       preserveTexture && geometry.attributes.uv && geometry.attributes.uv.count;
 
-    // console.time('Mesh simplification');
+    console.time('Mesh simplification');
     if (geometry.attributes.position.count < 50) {
       console.warn('Less than 50 vertices, returning');
       resolveTop(geometry);
@@ -1282,6 +1282,10 @@ function requestFreeWorkers(workers, verticesLength, onWorkersReady) {
     Math.round(verticesLength / minVerticesPerWorker)
   );
 
+  if (!workers.length) {
+    console.error('Workers not created. Call createWorkers at the beginning');
+  }
+
   // limit to workers with free flag
   let workersAmount = Math.min(
     Math.min(workers.filter(w => w.free).length, maxWorkers),
@@ -1508,7 +1512,7 @@ function createNewBufferGeometry(
     faceCount++;
   }
 
-  console.log('Faces reduction from : ', faces.length / 3, 'to', faceCount);
+  // console.log('Faces reduction from : ', faces.length / 3, 'to', faceCount);
   var positions = new Float32Array(faceCount * 9); // faces * 3 vertices * vector3
   var normals = new Float32Array(faceCount * 9);
   var skinWeightArr = new Float32Array(faceCount * 12);
@@ -1557,7 +1561,7 @@ function createNewBufferGeometry(
       }
 
       const reindexedAttribute = reindexAttribute(attrib.array, mapOldToNewIndex, attrib.itemSize);
-      geo.addAttribute(attrib.name, new BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
+      geo.setAttribute(attrib.name, new BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
       // const bufferAttribute = new Float32Array(faceCount * 3 * attrib.itemSize);
       // count = 0;
       // for (i = 0; i < faces.length / 3; i++) {
@@ -1584,7 +1588,7 @@ function createNewBufferGeometry(
       //   count * 3 * attrib.itemSize
       // );
       // bufferAttributeShrunk.set(bufferAttribute);
-      // geo.addAttribute(
+      // geo.setAttribute(
       //   attrib.name,
       //   new BufferAttribute(bufferAttributeShrunk, attrib.itemSize)
       // );
@@ -1642,22 +1646,22 @@ function createNewBufferGeometry(
     : count * 3 * 3;
 
   if (!geometry.index) {
-    geo.addAttribute('position', new BufferAttribute(positions, 3));
+    geo.setAttribute('position', new BufferAttribute(positions, 3));
 
     if (normals.length > 0) {
-      geo.addAttribute('normal', new BufferAttribute(normals, 3));
+      geo.setAttribute('normal', new BufferAttribute(normals, 3));
     }
 
     if (uvs.length > 0) {
-      geo.addAttribute('uv', new BufferAttribute(uvs, 2));
+      geo.setAttribute('uv', new BufferAttribute(uvs, 2));
     }
 
     if (skinIndexArr.length > 0) {
-      geo.addAttribute('skinIndex', new BufferAttribute(skinIndexArr, 4));
+      geo.setAttribute('skinIndex', new BufferAttribute(skinIndexArr, 4));
     }
 
     if (skinWeightArr.length > 0) {
-      geo.addAttribute('skinWeight', new BufferAttribute(skinWeightArr, 4));
+      geo.setAttribute('skinWeight', new BufferAttribute(skinWeightArr, 4));
     }
   }
 
