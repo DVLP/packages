@@ -5406,6 +5406,8 @@ function createDOM () {
   parent.style.left = 0;
   parent.style.width = '100%';
   parent.style.height = '100%';
+  parent.style.zIndex = 2000;
+
 
   const webglOutput = document.createElement('div');
   webglOutput.id = 'WebGL-output';
@@ -5418,7 +5420,10 @@ function createDOM () {
   closeButton.style.position = 'absolute';
   closeButton.style.top = '10x';
   closeButton.style.right = 0;
-  closeButton.style.backgroundColor = 'red';
+  closeButton.style.padding = '10px';
+  closeButton.style.fontWeight = 'bold';
+  closeButton.style.fontSize = '25px';
+  closeButton.style.backgroundColor = 'white';
   closeButton.textContent = 'X';
   parent.appendChild(closeButton);
 
