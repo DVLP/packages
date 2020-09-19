@@ -2,6 +2,7 @@ import { meshSimplifier, killWorkers, createWorkers } from './MeshSimplifier';
 // import OrbitControls from './components/orbitControls.js';
 // import Loader from './components/Loader.js';
 import * as dat from 'dat.gui';
+import * as dvlpThree from 'dvlp-three'; // for legacy crash-free OrbitControls access
 import { AmbientLight, BoxHelper, Color, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer } from 'dvlp-three';
 // import { OrbitControls } from 'dvlp-three/examples/jsm/controls/OrbitControls.js';
 
@@ -126,7 +127,7 @@ function setupGUI(webglContainer, models) {
   );
 
   gui.domElement.style.position = 'absolute';
-  gui.domElement.style.zIndex = 10;
+  gui.domElement.style.zIndex = 2000;
   gui.domElement.style.right = '40px';
 
   return gui;
@@ -276,12 +277,19 @@ function setupNewObject(scene, obj, controls, domElement) {
 
   camera.position.set(0, box.max.y - box.min.y, Math.abs(modelMaxSize * 3));
 
-  // ocontrols = new OrbitControls(camera, domElement);
-  // ocontrols.target.set(2.5, (box.max.y - box.min.y) / 2, 0);
+
+  if (dvlpThree.OrbitControls) {
+    ocontrols = new dvlpThree.OrbitControls(camera, domElement);
+    ocontrols.target.set(2.5, (box.max.y - box.min.y) / 2, 0);
+  } else {
+    console.warn('Update this code to work with THREE 117+');
+  }
 
   optimizeModel(controls);
 
-  // ocontrols.update();
+  if (dvlpThree.OrbitControls) {
+    ocontrols.update();
+  }
 }
 // function setupDropzone(scene) {
 //   document.addEventListener('dragover', handleDragOver, false);

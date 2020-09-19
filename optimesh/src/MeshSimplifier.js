@@ -1561,7 +1561,8 @@ function createNewBufferGeometry(
       }
 
       const reindexedAttribute = reindexAttribute(attrib.array, mapOldToNewIndex, attrib.itemSize);
-      geo.setAttribute(attrib.name, new BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
+      const setAttribute = geo.setAttribute ? geo.setAttribute : geo.addAttribute;
+      setAttribute.call(geo, attrib.name, new BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
       // const bufferAttribute = new Float32Array(faceCount * 3 * attrib.itemSize);
       // count = 0;
       // for (i = 0; i < faces.length / 3; i++) {
@@ -1588,7 +1589,7 @@ function createNewBufferGeometry(
       //   count * 3 * attrib.itemSize
       // );
       // bufferAttributeShrunk.set(bufferAttribute);
-      // geo.setAttribute(
+      // setAttribute.call(geo, 
       //   attrib.name,
       //   new BufferAttribute(bufferAttributeShrunk, attrib.itemSize)
       // );
@@ -1645,23 +1646,25 @@ function createNewBufferGeometry(
     ? geo.attributes.position.array.length
     : count * 3 * 3;
 
+  const setAttribute = geo.setAttribute ? geo.setAttribute : geo.addAttribute;
+
   if (!geometry.index) {
-    geo.setAttribute('position', new BufferAttribute(positions, 3));
+    setAttribute.call(geo, 'position', new BufferAttribute(positions, 3));
 
     if (normals.length > 0) {
-      geo.setAttribute('normal', new BufferAttribute(normals, 3));
+      setAttribute.call(geo, 'normal', new BufferAttribute(normals, 3));
     }
 
     if (uvs.length > 0) {
-      geo.setAttribute('uv', new BufferAttribute(uvs, 2));
+      setAttribute.call(geo, 'uv', new BufferAttribute(uvs, 2));
     }
 
     if (skinIndexArr.length > 0) {
-      geo.setAttribute('skinIndex', new BufferAttribute(skinIndexArr, 4));
+      setAttribute.call(geo, 'skinIndex', new BufferAttribute(skinIndexArr, 4));
     }
 
     if (skinWeightArr.length > 0) {
-      geo.setAttribute('skinWeight', new BufferAttribute(skinWeightArr, 4));
+      setAttribute.call(geo, 'skinWeight', new BufferAttribute(skinWeightArr, 4));
     }
   }
 

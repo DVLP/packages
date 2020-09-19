@@ -2704,7 +2704,8 @@ var optimesh = (function (exports, dvlpThree) {
 	      }
 
 	      const reindexedAttribute = reindexAttribute(attrib.array, mapOldToNewIndex, attrib.itemSize);
-	      geo.setAttribute(attrib.name, new dvlpThree.BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
+	      const setAttribute = geo.setAttribute ? geo.setAttribute : geo.addAttribute;
+	      setAttribute.call(geo, attrib.name, new dvlpThree.BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
 	      // const bufferAttribute = new Float32Array(faceCount * 3 * attrib.itemSize);
 	      // count = 0;
 	      // for (i = 0; i < faces.length / 3; i++) {
@@ -2731,7 +2732,7 @@ var optimesh = (function (exports, dvlpThree) {
 	      //   count * 3 * attrib.itemSize
 	      // );
 	      // bufferAttributeShrunk.set(bufferAttribute);
-	      // geo.setAttribute(
+	      // setAttribute.call(geo, 
 	      //   attrib.name,
 	      //   new BufferAttribute(bufferAttributeShrunk, attrib.itemSize)
 	      // );
@@ -2788,23 +2789,25 @@ var optimesh = (function (exports, dvlpThree) {
 	    ? geo.attributes.position.array.length
 	    : count * 3 * 3;
 
+	  const setAttribute = geo.setAttribute ? geo.setAttribute : geo.addAttribute;
+
 	  if (!geometry.index) {
-	    geo.setAttribute('position', new dvlpThree.BufferAttribute(positions, 3));
+	    setAttribute.call(geo, 'position', new dvlpThree.BufferAttribute(positions, 3));
 
 	    if (normals.length > 0) {
-	      geo.setAttribute('normal', new dvlpThree.BufferAttribute(normals, 3));
+	      setAttribute.call(geo, 'normal', new dvlpThree.BufferAttribute(normals, 3));
 	    }
 
 	    if (uvs.length > 0) {
-	      geo.setAttribute('uv', new dvlpThree.BufferAttribute(uvs, 2));
+	      setAttribute.call(geo, 'uv', new dvlpThree.BufferAttribute(uvs, 2));
 	    }
 
 	    if (skinIndexArr.length > 0) {
-	      geo.setAttribute('skinIndex', new dvlpThree.BufferAttribute(skinIndexArr, 4));
+	      setAttribute.call(geo, 'skinIndex', new dvlpThree.BufferAttribute(skinIndexArr, 4));
 	    }
 
 	    if (skinWeightArr.length > 0) {
-	      geo.setAttribute('skinWeight', new dvlpThree.BufferAttribute(skinWeightArr, 4));
+	      setAttribute.call(geo, 'skinWeight', new dvlpThree.BufferAttribute(skinWeightArr, 4));
 	    }
 	  }
 
@@ -5397,7 +5400,7 @@ var optimesh = (function (exports, dvlpThree) {
 	  done = onDone;
 
 	  createWorkers();
-	  setupNewObject(scene, model, controls);
+	  setupNewObject(scene, model, controls, webglContainer);
 	}
 
 	function createDOM () {
@@ -5510,7 +5513,7 @@ var optimesh = (function (exports, dvlpThree) {
 	  );
 
 	  gui.domElement.style.position = 'absolute';
-	  gui.domElement.style.zIndex = 10;
+	  gui.domElement.style.zIndex = 2000;
 	  gui.domElement.style.right = '40px';
 
 	  return gui;
@@ -5660,12 +5663,19 @@ var optimesh = (function (exports, dvlpThree) {
 
 	  camera.position.set(0, box.max.y - box.min.y, Math.abs(modelMaxSize * 3));
 
-	  // ocontrols = new OrbitControls(camera, domElement);
-	  // ocontrols.target.set(2.5, (box.max.y - box.min.y) / 2, 0);
+
+	  if (dvlpThree.OrbitControls) {
+	    ocontrols = new dvlpThree.OrbitControls(camera, domElement);
+	    ocontrols.target.set(2.5, (box.max.y - box.min.y) / 2, 0);
+	  } else {
+	    console.warn('Update this code to work with THREE 117+');
+	  }
 
 	  optimizeModel(controls);
 
-	  // ocontrols.update();
+	  if (dvlpThree.OrbitControls) {
+	    ocontrols.update();
+	  }
 	}
 	// function setupDropzone(scene) {
 	//   document.addEventListener('dragover', handleDragOver, false);
