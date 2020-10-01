@@ -208,7 +208,7 @@ function optimizeModel(controls) {
 
   recursivelyOptimize(modelOptimized, controls);
 
-  modelOptimized.position.x = modelMaxSize;
+  modelOptimizedGroup.position.x = modelMaxSize;
 }
 
 function getRenderer(scene, camera, renderer, controls) {
