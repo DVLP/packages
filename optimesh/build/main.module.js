@@ -1,6 +1,4 @@
 var dvlpThree = dvlpThree || THREE;
-import { Vector3, BufferGeometry, BufferAttribute } from 'dvlp-three';
-
 // BELOW FLAT ARRAYS MANAGER
 const FIELDS_OVERSIZE = 500;
 const OVERSIZE_CONTAINER_CAPACITY = 2000;
@@ -2038,6 +2036,11 @@ const getIndexedPositions = (function() {
   };
 })();
 
+const {
+  BufferGeometry,
+  BufferAttribute,
+  Vector3
+} = dvlpThree;
 class WebWorker {
   constructor(worker) {
     const blob = new Blob(['(' + worker.toString() + ')()'], {
@@ -3110,7 +3113,7 @@ var Common = {
     return obj === false || obj === true;
   },
   isFunction: function isFunction(obj) {
-    return Object.prototype.toString.call(obj) === '[object Function]';
+    return obj instanceof Function;
   }
 };
 
@@ -3608,8 +3611,9 @@ Object.defineProperty(Color.prototype, 'a', {
 });
 Object.defineProperty(Color.prototype, 'hex', {
   get: function get$$1() {
-    if (!this.__state.space !== 'HEX') {
+    if (this.__state.space !== 'HEX') {
       this.__state.hex = ColorMath.rgb_to_hex(this.r, this.g, this.b);
+      this.__state.space = 'HEX';
     }
     return this.__state.hex;
   },
@@ -5423,7 +5427,7 @@ function updateDisplays(controllerArray) {
 var GUI$1 = GUI;
 
 // NO NEED TO IMPORT dvlpThree - it's added by rollup so it works with both THREE and dvlpThreee
-const { AmbientLight, BoxHelper, Color: Color$1, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer, OrbitControls } = dvlpThree;
+const { AmbientLight, BoxHelper, Color: Color$1, Group, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer, OrbitControls } = dvlpThree;
 // import { OrbitControls } from 'dvlp-three/examples/jsm/controls/OrbitControls.js';
 
 var camera, ocontrols, modelGroup, modelOptimized, modelOptimizedGroup, modelMaxSize, fileLoader, close, done;
@@ -5667,7 +5671,7 @@ function setupNewObject(scene, obj, controls, domElement) {
   scene.remove(modelGroup);
   scene.remove(modelOptimizedGroup);
 
-  modelGroup = new THREE.Group();
+  modelGroup = new Group();
   modelGroup.add(obj);
   modelOptimized = obj.clone();
   if (modelOptimized) {

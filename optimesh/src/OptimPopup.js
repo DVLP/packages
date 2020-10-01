@@ -2,7 +2,7 @@ import { meshSimplifier, killWorkers, createWorkers } from './MeshSimplifier';
 import * as dat from 'dat.gui';
 
 // NO NEED TO IMPORT dvlpThree - it's added by rollup so it works with both THREE and dvlpThreee
-const { AmbientLight, BoxHelper, Color, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer, OrbitControls } = dvlpThree
+const { AmbientLight, BoxHelper, Color, Group, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer, OrbitControls } = dvlpThree
 // import { OrbitControls } from 'dvlp-three/examples/jsm/controls/OrbitControls.js';
 
 var camera, ocontrols, modelGroup, modelOptimized, modelOptimizedGroup, modelMaxSize, fileLoader, close, done;
@@ -249,7 +249,7 @@ function setupNewObject(scene, obj, controls, domElement) {
   scene.remove(modelGroup);
   scene.remove(modelOptimizedGroup);
 
-  modelGroup = new THREE.Group();
+  modelGroup = new Group();
   modelGroup.add(obj);
   modelOptimized = obj.clone();
   if (modelOptimized) {

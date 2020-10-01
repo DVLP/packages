@@ -12,14 +12,14 @@ export default {
       file: 'build/main.js',
       indent: '\t',
       banner: 'var dvlpThree = dvlpThree || THREE;',
-      external: ['dvlp-three']
+      external: ['dvlp-three', 'dvlpThree', 'THREE']
     },
     {
       format: 'es',
       file: 'build/main.module.js',
       indent: '\t',
       banner: 'var dvlpThree = dvlpThree || THREE;',
-      external: ['dvlp-three']
+      external: ['dvlp-three', 'dvlpThree', 'THREE']
     }
   ],
   plugins    : [

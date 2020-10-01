@@ -1,11 +1,11 @@
-import {
-  BufferGeometry,
-  BufferAttribute,
-  Vector3
-} from 'dvlp-three';
 import { addToSBWithOversize, emptyOversizedContainer, emptyOversizedContainerIndex, removeFieldFromSBWithOversize, zeroFill } from './BufferArrayManager';
 import * as CostWorker from './Worker/simplify.worker.js';
 import { getIndexedPositions } from './Utils';
+const {
+  BufferGeometry,
+  BufferAttribute,
+  Vector3
+} = dvlpThree;
 export class WebWorker {
   constructor(worker) {
     const blob = new Blob(['(' + worker.toString() + ')()'], {

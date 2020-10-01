@@ -1,5 +1,5 @@
 var dvlpThree = dvlpThree || THREE;
-var optimesh = (function (exports, dvlpThree$1) {
+var optimesh = (function (exports) {
 	'use strict';
 
 	// BELOW FLAT ARRAYS MANAGER
@@ -2039,6 +2039,11 @@ var optimesh = (function (exports, dvlpThree$1) {
 	  };
 	})();
 
+	const {
+	  BufferGeometry,
+	  BufferAttribute,
+	  Vector3
+	} = dvlpThree;
 	class WebWorker {
 	  constructor(worker) {
 	    const blob = new Blob(['(' + worker.toString() + ')()'], {
@@ -2426,10 +2431,10 @@ var optimesh = (function (exports, dvlpThree$1) {
 	}
 
 	// borrowed from geometry
-	var cb = new dvlpThree$1.Vector3(),
-	  ab = new dvlpThree$1.Vector3();
-	var v1Temp = new dvlpThree$1.Vector3(),
-	  v2Temp = new dvlpThree$1.Vector3();
+	var cb = new Vector3(),
+	  ab = new Vector3();
+	var v1Temp = new Vector3(),
+	  v2Temp = new Vector3();
 	function computeFaceNormal(faceId, facesView, verticesView) {
 	  getVertexOnFaceId(faceId, facesView, verticesView, 1, v1Temp);
 	  getVertexOnFaceId(faceId, facesView, verticesView, 2, v2Temp);
@@ -2445,10 +2450,10 @@ var optimesh = (function (exports, dvlpThree$1) {
 	  return cb;
 	}
 
-	const posA = new dvlpThree$1.Vector3();
-	const posB = new dvlpThree$1.Vector3();
+	const posA = new Vector3();
+	const posB = new Vector3();
 
-	var moveToThisNormalValues = [new dvlpThree$1.Vector3(), new dvlpThree$1.Vector3(), new dvlpThree$1.Vector3()];
+	var moveToThisNormalValues = [new Vector3(), new Vector3(), new Vector3()];
 
 	function requestFreeWorkers(workers, verticesLength, onWorkersReady) {
 	  // at least 2000 vertices per worker, limit amount of workers
@@ -2679,7 +2684,7 @@ var optimesh = (function (exports, dvlpThree$1) {
 	  preserveTexture,
 	  geometry
 	) {
-	  const geo = new dvlpThree$1.BufferGeometry();
+	  const geo = new BufferGeometry();
 	  geo.name = geometry.name;
 	  let faceCount = 0;
 
@@ -2699,7 +2704,7 @@ var optimesh = (function (exports, dvlpThree$1) {
 
 	  if (geometry.index) {
 	    const [newindex, mapOldToNewIndex] = reindex(faces);
-	    geo.setIndex(new dvlpThree$1.BufferAttribute(newindex, 1));
+	    geo.setIndex(new BufferAttribute(newindex, 1));
 
 	    const attributes = [
 	      {
@@ -2738,7 +2743,7 @@ var optimesh = (function (exports, dvlpThree$1) {
 
 	      const reindexedAttribute = reindexAttribute(attrib.array, mapOldToNewIndex, attrib.itemSize);
 	      const setAttribute = geo.setAttribute ? geo.setAttribute : geo.addAttribute;
-	      setAttribute.call(geo, attrib.name, new dvlpThree$1.BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
+	      setAttribute.call(geo, attrib.name, new BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
 	      // const bufferAttribute = new Float32Array(faceCount * 3 * attrib.itemSize);
 	      // count = 0;
 	      // for (i = 0; i < faces.length / 3; i++) {
@@ -2825,22 +2830,22 @@ var optimesh = (function (exports, dvlpThree$1) {
 	  const setAttribute = geo.setAttribute ? geo.setAttribute : geo.addAttribute;
 
 	  if (!geometry.index) {
-	    setAttribute.call(geo, 'position', new dvlpThree$1.BufferAttribute(positions, 3));
+	    setAttribute.call(geo, 'position', new BufferAttribute(positions, 3));
 
 	    if (normals.length > 0) {
-	      setAttribute.call(geo, 'normal', new dvlpThree$1.BufferAttribute(normals, 3));
+	      setAttribute.call(geo, 'normal', new BufferAttribute(normals, 3));
 	    }
 
 	    if (uvs.length > 0) {
-	      setAttribute.call(geo, 'uv', new dvlpThree$1.BufferAttribute(uvs, 2));
+	      setAttribute.call(geo, 'uv', new BufferAttribute(uvs, 2));
 	    }
 
 	    if (skinIndexArr.length > 0) {
-	      setAttribute.call(geo, 'skinIndex', new dvlpThree$1.BufferAttribute(skinIndexArr, 4));
+	      setAttribute.call(geo, 'skinIndex', new BufferAttribute(skinIndexArr, 4));
 	    }
 
 	    if (skinWeightArr.length > 0) {
-	      setAttribute.call(geo, 'skinWeight', new dvlpThree$1.BufferAttribute(skinWeightArr, 4));
+	      setAttribute.call(geo, 'skinWeight', new BufferAttribute(skinWeightArr, 4));
 	    }
 	  }
 
@@ -3111,7 +3116,7 @@ var optimesh = (function (exports, dvlpThree$1) {
 	    return obj === false || obj === true;
 	  },
 	  isFunction: function isFunction(obj) {
-	    return Object.prototype.toString.call(obj) === '[object Function]';
+	    return obj instanceof Function;
 	  }
 	};
 
@@ -3609,8 +3614,9 @@ var optimesh = (function (exports, dvlpThree$1) {
 	});
 	Object.defineProperty(Color.prototype, 'hex', {
 	  get: function get$$1() {
-	    if (!this.__state.space !== 'HEX') {
+	    if (this.__state.space !== 'HEX') {
 	      this.__state.hex = ColorMath.rgb_to_hex(this.r, this.g, this.b);
+	      this.__state.space = 'HEX';
 	    }
 	    return this.__state.hex;
 	  },
@@ -5424,7 +5430,7 @@ var optimesh = (function (exports, dvlpThree$1) {
 	var GUI$1 = GUI;
 
 	// NO NEED TO IMPORT dvlpThree - it's added by rollup so it works with both THREE and dvlpThreee
-	const { AmbientLight, BoxHelper, Color: Color$1, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer, OrbitControls } = dvlpThree;
+	const { AmbientLight, BoxHelper, Color: Color$1, Group, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer, OrbitControls } = dvlpThree;
 	// import { OrbitControls } from 'dvlp-three/examples/jsm/controls/OrbitControls.js';
 
 	var camera, ocontrols, modelGroup, modelOptimized, modelOptimizedGroup, modelMaxSize, fileLoader, close, done;
@@ -5668,7 +5674,7 @@ var optimesh = (function (exports, dvlpThree$1) {
 	  scene.remove(modelGroup);
 	  scene.remove(modelOptimizedGroup);
 
-	  modelGroup = new THREE.Group();
+	  modelGroup = new Group();
 	  modelGroup.add(obj);
 	  modelOptimized = obj.clone();
 	  if (modelOptimized) {
@@ -5775,4 +5781,4 @@ var optimesh = (function (exports, dvlpThree$1) {
 
 	return exports;
 
-}({}, dvlpThree$1));
+}({}));
