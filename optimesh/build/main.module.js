@@ -1,5 +1,5 @@
 var dvlpThree = dvlpThree || THREE;
-import { Vector3, BufferGeometry, BufferAttribute, Scene, PerspectiveCamera, AmbientLight, SpotLight, HemisphereLight, WebGLRenderer, Color as Color$1, BoxHelper, OrbitControls } from 'dvlp-three';
+import { Vector3, BufferGeometry, BufferAttribute } from 'dvlp-three';
 
 // BELOW FLAT ARRAYS MANAGER
 const FIELDS_OVERSIZE = 500;
@@ -77,7 +77,8 @@ var simplify_worker = () => {
       specialCases: data.specialCases,
       specialCasesIndex: data.specialCasesIndex,
       specialFaceCases: data.specialFaceCases,
-      specialFaceCasesIndex: data.specialFaceCasesIndex
+      specialFaceCasesIndex: data.specialFaceCasesIndex,
+      modelSizeFactor: (1 / data.modelSize) * 10
     };
     dataArrayViews.collapseQueue = new Uint32Array(150);
 
@@ -950,10 +951,6 @@ var simplify_worker = () => {
       }
       curvature = Math.max(curvature, minCurvature);
     }
-
-    // crude approach in attempt to preserve borders
-    // though it seems not to be totally correct
-    var borders = 0;
     if (sideFaces[0] === -1 || sideFaces[1] === -1) {
       // we add some arbitrary cost for borders,
       //borders += 1;
@@ -962,10 +959,15 @@ var simplify_worker = () => {
 
     var costUV = computeUVsCost(uId, vId, dataArrayViews);
 
+    // var amt =
+    //   edgelengthSquared * curvature * curvature +
+    //   borders * borders +
+    //   costUV * costUV;
     var amt =
-      edgelengthSquared * curvature * curvature +
-      borders * borders +
-      costUV * costUV;
+      Math.sqrt(edgelengthSquared) * dataArrayViews.modelSizeFactor + // compute bounding box from vertices first and use max size to affect edge length param
+      curvature * 10 + // float 0 - 10 what if curvature is less than 1 ? it will cause
+      // borders * borders +
+      (costUV + costUV); // integer - always > 1 // what if cost uv is less than 1 ? it will cause
 
     return amt;
   }
@@ -1118,7 +1120,7 @@ var simplify_worker = () => {
     // shrinkMaterialSpace(fid, dataArrayViews);
   }
 
-  var moveToThisNormalValues = [new Vector3(), new Vector3(), new Vector3()];
+  var moveToThisNormalValues = new Vector3();
   var moveToSkinIndex = new Float32Array(4);
   var moveToSkinWeight = new Float32Array(4);
   var UVs = new Float32Array(2);
@@ -1178,26 +1180,27 @@ var simplify_worker = () => {
           );
         }
 
-        // if (u.faces[i].normal) {
-        var middleGroundNormal = getPointInBetweenByPerc(
-          getFromAttributeObj(
-            dataArrayViews.faceNormalsView,
-            faceId,
-            vertIndexOnFace,
-            2,
-            v1Temp
-          ),
-          getFromAttributeObj(
-            dataArrayViews.faceNormalsView,
-            faceId,
-            vertIndexOnFace2,
-            2,
-            v2Temp
-          ),
-          0.5
-        );
-
-        moveToThisNormalValues[0] = middleGroundNormal;
+        // interpolate between normals
+        moveToThisNormalValues
+          .copy(
+            getFromAttributeObj(
+              dataArrayViews.faceNormalsView,
+              faceId,
+              vertIndexOnFace,
+              3,
+              v1Temp
+            )
+          )
+          .lerp(
+            getFromAttributeObj(
+              dataArrayViews.faceNormalsView,
+              faceId,
+              vertIndexOnFace2,
+              3,
+              v2Temp
+            ),
+            0.5
+          );
 
         getFromAttribute(
           dataArrayViews.skinIndex,
@@ -1243,6 +1246,31 @@ var simplify_worker = () => {
           1,
           UVs[1],
           2
+        );
+
+        setOnAttribute(
+          dataArrayViews.faceNormalsView,
+          faceId,
+          vertIndexOnFace,
+          0,
+          moveToThisNormalValues.x,
+          3
+        );
+        setOnAttribute(
+          dataArrayViews.faceNormalsView,
+          faceId,
+          vertIndexOnFace,
+          1,
+          moveToThisNormalValues.y,
+          3
+        );
+        setOnAttribute(
+          dataArrayViews.faceNormalsView,
+          faceId,
+          vertIndexOnFace,
+          2,
+          moveToThisNormalValues.z,
+          3
         );
       }
     }
@@ -1316,13 +1344,6 @@ var simplify_worker = () => {
   ) {
     getFromAttribute(attribute, faceId, vertexIndexOnFace, itemSize, tempArr);
     return target.fromArray(tempArr);
-  }
-
-  function getPointInBetweenByPerc(pointA, pointB, percentage) {
-    var dir = v1Temp.copy(pointB).sub(pointA);
-    var len = dir.length();
-    dir = dir.normalize().multiplyScalar(len * percentage);
-    return dir.add(pointA);
   }
 
   function getVertexIndexOnFaceId(faceId, vertexId, facesView) {
@@ -2037,6 +2058,8 @@ class WebWorker {
  */
 const FIELDS_NO = 30;
 const FIELDS_OVERSIZE$1 = 500;
+// if this value is below 10k workers start overlapping each other's work(neighbours can be outside worker's range, there's a locking mechanism for this but not perfect)
+const MIN_VERTICES_PER_WORKER = 50000;
 const OVERSIZE_CONTAINER_CAPACITY$1 = 2000;
 let reqId = 0;
 let totalAvailableWorkers = navigator.hardwareConcurrency;
@@ -2084,7 +2107,18 @@ function meshSimplifier(
   attempt = 0,
   resolveTop
 ) {
-  return new Promise((resolve, reject) => {
+  if (!modelSize) {
+    var box = geometry.boundingBox;
+    if (!box) {
+      geometry.computeBoundingBox();
+      box = geometry.boundingBox;
+    }
+    modelSize = Math.max(
+      box.max.x - box.min.x,
+      box.max.y - box.min.y,
+      box.max.z - box.min.z
+    );
+  }  return new Promise((resolve, reject) => {
     if (discardSimpleGeometry(geometry)) {
       return resolve(geometry);
     }
@@ -2418,10 +2452,9 @@ var moveToThisNormalValues = [new Vector3(), new Vector3(), new Vector3()];
 function requestFreeWorkers(workers, verticesLength, onWorkersReady) {
   // at least 2000 vertices per worker, limit amount of workers
   const availableWorkersAmount = workers.length;
-  const minVerticesPerWorker = 4000;
   let maxWorkers = Math.max(
     1,
-    Math.round(verticesLength / minVerticesPerWorker)
+    Math.round(verticesLength / MIN_VERTICES_PER_WORKER)
   );
 
   if (!workers.length) {
@@ -2486,7 +2519,7 @@ function sendWorkToWorkers(
     //   'out of',
     //   workersAmount,
     //   'available workers(at least',
-    //   minVerticesPerWorker,
+    //   MIN_VERTICES_PER_WORKER,
     //   'vertices per worker)'
     //   'vertices per worker)'
     // );
@@ -5389,9 +5422,11 @@ function updateDisplays(controllerArray) {
 }
 var GUI$1 = GUI;
 
+// NO NEED TO IMPORT dvlpThree - it's added by rollup so it works with both THREE and dvlpThreee
+const { AmbientLight, BoxHelper, Color: Color$1, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer, OrbitControls } = dvlpThree;
 // import { OrbitControls } from 'dvlp-three/examples/jsm/controls/OrbitControls.js';
 
-var camera, ocontrols, modelGroup, modelOptimized, modelMaxSize, fileLoader, close, done;
+var camera, ocontrols, modelGroup, modelOptimized, modelOptimizedGroup, modelMaxSize, fileLoader, close, done;
 
 function openOptimizer (model, onDone) {
   const webglContainer = createDOM();
@@ -5551,8 +5586,6 @@ function setupRenderer(scene, camera, controls) {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = false;
 
-  console.log('KUTAHOH');
-
   localStorage.stopEverything = 'true';
   setTimeout(() => {
     localStorage.stopEverything = 'false';
@@ -5605,9 +5638,6 @@ function getRenderer(scene, camera, renderer, controls) {
       modelGroup.rotation.y += controls.rotationSpeed;
       toWireframe(modelGroup, controls.wireframe);
     }
-    if (modelOptimized) {
-      modelOptimized.rotation.copy(modelGroup.rotation);
-    }
 
     if (localStorage.stopEverything === 'false') {
       requestAnimationFrame(render);
@@ -5635,10 +5665,11 @@ function toWireframe(obj, wireframeMode) {
 
 function setupNewObject(scene, obj, controls, domElement) {
   scene.remove(modelGroup);
-  scene.remove(modelOptimized);
+  scene.remove(modelOptimizedGroup);
 
-  modelGroup = obj;
-  modelOptimized = modelGroup.clone();
+  modelGroup = new THREE.Group();
+  modelGroup.add(obj);
+  modelOptimized = obj.clone();
   if (modelOptimized) {
     modelOptimized.originalGeometry =
       modelOptimized.geometry;
@@ -5646,8 +5677,9 @@ function setupNewObject(scene, obj, controls, domElement) {
     modelOptimized.originalGeometry = modelOptimized.geometry;
   }
 
+  modelOptimizedGroup.add(modelOptimized);
   scene.add(modelGroup);
-  scene.add(modelOptimized);
+  scene.add(modelOptimizedGroup);
 
   // update camera position to contain entire camera in view
   const bbox = new BoxHelper(modelGroup, new Color$1(0xff9900));

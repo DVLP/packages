@@ -1,5 +1,5 @@
 var dvlpThree = dvlpThree || THREE;
-var optimesh = (function (exports, dvlpThree) {
+var optimesh = (function (exports, dvlpThree$1) {
 	'use strict';
 
 	// BELOW FLAT ARRAYS MANAGER
@@ -78,7 +78,8 @@ var optimesh = (function (exports, dvlpThree) {
 	      specialCases: data.specialCases,
 	      specialCasesIndex: data.specialCasesIndex,
 	      specialFaceCases: data.specialFaceCases,
-	      specialFaceCasesIndex: data.specialFaceCasesIndex
+	      specialFaceCasesIndex: data.specialFaceCasesIndex,
+	      modelSizeFactor: (1 / data.modelSize) * 10
 	    };
 	    dataArrayViews.collapseQueue = new Uint32Array(150);
 
@@ -951,10 +952,6 @@ var optimesh = (function (exports, dvlpThree) {
 	      }
 	      curvature = Math.max(curvature, minCurvature);
 	    }
-
-	    // crude approach in attempt to preserve borders
-	    // though it seems not to be totally correct
-	    var borders = 0;
 	    if (sideFaces[0] === -1 || sideFaces[1] === -1) {
 	      // we add some arbitrary cost for borders,
 	      //borders += 1;
@@ -963,10 +960,15 @@ var optimesh = (function (exports, dvlpThree) {
 
 	    var costUV = computeUVsCost(uId, vId, dataArrayViews);
 
+	    // var amt =
+	    //   edgelengthSquared * curvature * curvature +
+	    //   borders * borders +
+	    //   costUV * costUV;
 	    var amt =
-	      edgelengthSquared * curvature * curvature +
-	      borders * borders +
-	      costUV * costUV;
+	      Math.sqrt(edgelengthSquared) * dataArrayViews.modelSizeFactor + // compute bounding box from vertices first and use max size to affect edge length param
+	      curvature * 10 + // float 0 - 10 what if curvature is less than 1 ? it will cause
+	      // borders * borders +
+	      (costUV + costUV); // integer - always > 1 // what if cost uv is less than 1 ? it will cause
 
 	    return amt;
 	  }
@@ -1119,7 +1121,7 @@ var optimesh = (function (exports, dvlpThree) {
 	    // shrinkMaterialSpace(fid, dataArrayViews);
 	  }
 
-	  var moveToThisNormalValues = [new Vector3(), new Vector3(), new Vector3()];
+	  var moveToThisNormalValues = new Vector3();
 	  var moveToSkinIndex = new Float32Array(4);
 	  var moveToSkinWeight = new Float32Array(4);
 	  var UVs = new Float32Array(2);
@@ -1179,26 +1181,27 @@ var optimesh = (function (exports, dvlpThree) {
 	          );
 	        }
 
-	        // if (u.faces[i].normal) {
-	        var middleGroundNormal = getPointInBetweenByPerc(
-	          getFromAttributeObj(
-	            dataArrayViews.faceNormalsView,
-	            faceId,
-	            vertIndexOnFace,
-	            2,
-	            v1Temp
-	          ),
-	          getFromAttributeObj(
-	            dataArrayViews.faceNormalsView,
-	            faceId,
-	            vertIndexOnFace2,
-	            2,
-	            v2Temp
-	          ),
-	          0.5
-	        );
-
-	        moveToThisNormalValues[0] = middleGroundNormal;
+	        // interpolate between normals
+	        moveToThisNormalValues
+	          .copy(
+	            getFromAttributeObj(
+	              dataArrayViews.faceNormalsView,
+	              faceId,
+	              vertIndexOnFace,
+	              3,
+	              v1Temp
+	            )
+	          )
+	          .lerp(
+	            getFromAttributeObj(
+	              dataArrayViews.faceNormalsView,
+	              faceId,
+	              vertIndexOnFace2,
+	              3,
+	              v2Temp
+	            ),
+	            0.5
+	          );
 
 	        getFromAttribute(
 	          dataArrayViews.skinIndex,
@@ -1244,6 +1247,31 @@ var optimesh = (function (exports, dvlpThree) {
 	          1,
 	          UVs[1],
 	          2
+	        );
+
+	        setOnAttribute(
+	          dataArrayViews.faceNormalsView,
+	          faceId,
+	          vertIndexOnFace,
+	          0,
+	          moveToThisNormalValues.x,
+	          3
+	        );
+	        setOnAttribute(
+	          dataArrayViews.faceNormalsView,
+	          faceId,
+	          vertIndexOnFace,
+	          1,
+	          moveToThisNormalValues.y,
+	          3
+	        );
+	        setOnAttribute(
+	          dataArrayViews.faceNormalsView,
+	          faceId,
+	          vertIndexOnFace,
+	          2,
+	          moveToThisNormalValues.z,
+	          3
 	        );
 	      }
 	    }
@@ -1317,13 +1345,6 @@ var optimesh = (function (exports, dvlpThree) {
 	  ) {
 	    getFromAttribute(attribute, faceId, vertexIndexOnFace, itemSize, tempArr);
 	    return target.fromArray(tempArr);
-	  }
-
-	  function getPointInBetweenByPerc(pointA, pointB, percentage) {
-	    var dir = v1Temp.copy(pointB).sub(pointA);
-	    var len = dir.length();
-	    dir = dir.normalize().multiplyScalar(len * percentage);
-	    return dir.add(pointA);
 	  }
 
 	  function getVertexIndexOnFaceId(faceId, vertexId, facesView) {
@@ -2038,6 +2059,8 @@ var optimesh = (function (exports, dvlpThree) {
 	 */
 	const FIELDS_NO = 30;
 	const FIELDS_OVERSIZE$1 = 500;
+	// if this value is below 10k workers start overlapping each other's work(neighbours can be outside worker's range, there's a locking mechanism for this but not perfect)
+	const MIN_VERTICES_PER_WORKER = 50000;
 	const OVERSIZE_CONTAINER_CAPACITY$1 = 2000;
 	let reqId = 0;
 	let totalAvailableWorkers = navigator.hardwareConcurrency;
@@ -2085,7 +2108,18 @@ var optimesh = (function (exports, dvlpThree) {
 	  attempt = 0,
 	  resolveTop
 	) {
-	  return new Promise((resolve, reject) => {
+	  if (!modelSize) {
+	    var box = geometry.boundingBox;
+	    if (!box) {
+	      geometry.computeBoundingBox();
+	      box = geometry.boundingBox;
+	    }
+	    modelSize = Math.max(
+	      box.max.x - box.min.x,
+	      box.max.y - box.min.y,
+	      box.max.z - box.min.z
+	    );
+	  }  return new Promise((resolve, reject) => {
 	    if (discardSimpleGeometry(geometry)) {
 	      return resolve(geometry);
 	    }
@@ -2392,10 +2426,10 @@ var optimesh = (function (exports, dvlpThree) {
 	}
 
 	// borrowed from geometry
-	var cb = new dvlpThree.Vector3(),
-	  ab = new dvlpThree.Vector3();
-	var v1Temp = new dvlpThree.Vector3(),
-	  v2Temp = new dvlpThree.Vector3();
+	var cb = new dvlpThree$1.Vector3(),
+	  ab = new dvlpThree$1.Vector3();
+	var v1Temp = new dvlpThree$1.Vector3(),
+	  v2Temp = new dvlpThree$1.Vector3();
 	function computeFaceNormal(faceId, facesView, verticesView) {
 	  getVertexOnFaceId(faceId, facesView, verticesView, 1, v1Temp);
 	  getVertexOnFaceId(faceId, facesView, verticesView, 2, v2Temp);
@@ -2411,18 +2445,17 @@ var optimesh = (function (exports, dvlpThree) {
 	  return cb;
 	}
 
-	const posA = new dvlpThree.Vector3();
-	const posB = new dvlpThree.Vector3();
+	const posA = new dvlpThree$1.Vector3();
+	const posB = new dvlpThree$1.Vector3();
 
-	var moveToThisNormalValues = [new dvlpThree.Vector3(), new dvlpThree.Vector3(), new dvlpThree.Vector3()];
+	var moveToThisNormalValues = [new dvlpThree$1.Vector3(), new dvlpThree$1.Vector3(), new dvlpThree$1.Vector3()];
 
 	function requestFreeWorkers(workers, verticesLength, onWorkersReady) {
 	  // at least 2000 vertices per worker, limit amount of workers
 	  const availableWorkersAmount = workers.length;
-	  const minVerticesPerWorker = 4000;
 	  let maxWorkers = Math.max(
 	    1,
-	    Math.round(verticesLength / minVerticesPerWorker)
+	    Math.round(verticesLength / MIN_VERTICES_PER_WORKER)
 	  );
 
 	  if (!workers.length) {
@@ -2487,7 +2520,7 @@ var optimesh = (function (exports, dvlpThree) {
 	    //   'out of',
 	    //   workersAmount,
 	    //   'available workers(at least',
-	    //   minVerticesPerWorker,
+	    //   MIN_VERTICES_PER_WORKER,
 	    //   'vertices per worker)'
 	    //   'vertices per worker)'
 	    // );
@@ -2646,7 +2679,7 @@ var optimesh = (function (exports, dvlpThree) {
 	  preserveTexture,
 	  geometry
 	) {
-	  const geo = new dvlpThree.BufferGeometry();
+	  const geo = new dvlpThree$1.BufferGeometry();
 	  geo.name = geometry.name;
 	  let faceCount = 0;
 
@@ -2666,7 +2699,7 @@ var optimesh = (function (exports, dvlpThree) {
 
 	  if (geometry.index) {
 	    const [newindex, mapOldToNewIndex] = reindex(faces);
-	    geo.setIndex(new dvlpThree.BufferAttribute(newindex, 1));
+	    geo.setIndex(new dvlpThree$1.BufferAttribute(newindex, 1));
 
 	    const attributes = [
 	      {
@@ -2705,7 +2738,7 @@ var optimesh = (function (exports, dvlpThree) {
 
 	      const reindexedAttribute = reindexAttribute(attrib.array, mapOldToNewIndex, attrib.itemSize);
 	      const setAttribute = geo.setAttribute ? geo.setAttribute : geo.addAttribute;
-	      setAttribute.call(geo, attrib.name, new dvlpThree.BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
+	      setAttribute.call(geo, attrib.name, new dvlpThree$1.BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
 	      // const bufferAttribute = new Float32Array(faceCount * 3 * attrib.itemSize);
 	      // count = 0;
 	      // for (i = 0; i < faces.length / 3; i++) {
@@ -2792,22 +2825,22 @@ var optimesh = (function (exports, dvlpThree) {
 	  const setAttribute = geo.setAttribute ? geo.setAttribute : geo.addAttribute;
 
 	  if (!geometry.index) {
-	    setAttribute.call(geo, 'position', new dvlpThree.BufferAttribute(positions, 3));
+	    setAttribute.call(geo, 'position', new dvlpThree$1.BufferAttribute(positions, 3));
 
 	    if (normals.length > 0) {
-	      setAttribute.call(geo, 'normal', new dvlpThree.BufferAttribute(normals, 3));
+	      setAttribute.call(geo, 'normal', new dvlpThree$1.BufferAttribute(normals, 3));
 	    }
 
 	    if (uvs.length > 0) {
-	      setAttribute.call(geo, 'uv', new dvlpThree.BufferAttribute(uvs, 2));
+	      setAttribute.call(geo, 'uv', new dvlpThree$1.BufferAttribute(uvs, 2));
 	    }
 
 	    if (skinIndexArr.length > 0) {
-	      setAttribute.call(geo, 'skinIndex', new dvlpThree.BufferAttribute(skinIndexArr, 4));
+	      setAttribute.call(geo, 'skinIndex', new dvlpThree$1.BufferAttribute(skinIndexArr, 4));
 	    }
 
 	    if (skinWeightArr.length > 0) {
-	      setAttribute.call(geo, 'skinWeight', new dvlpThree.BufferAttribute(skinWeightArr, 4));
+	      setAttribute.call(geo, 'skinWeight', new dvlpThree$1.BufferAttribute(skinWeightArr, 4));
 	    }
 	  }
 
@@ -5390,9 +5423,11 @@ var optimesh = (function (exports, dvlpThree) {
 	}
 	var GUI$1 = GUI;
 
+	// NO NEED TO IMPORT dvlpThree - it's added by rollup so it works with both THREE and dvlpThreee
+	const { AmbientLight, BoxHelper, Color: Color$1, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer, OrbitControls } = dvlpThree;
 	// import { OrbitControls } from 'dvlp-three/examples/jsm/controls/OrbitControls.js';
 
-	var camera, ocontrols, modelGroup, modelOptimized, modelMaxSize, fileLoader, close, done;
+	var camera, ocontrols, modelGroup, modelOptimized, modelOptimizedGroup, modelMaxSize, fileLoader, close, done;
 
 	function openOptimizer (model, onDone) {
 	  const webglContainer = createDOM();
@@ -5520,9 +5555,9 @@ var optimesh = (function (exports, dvlpThree) {
 	}
 
 	function setupScene() {
-	  var scene = new dvlpThree.Scene();
+	  var scene = new Scene();
 	  // setupDropzone(scene);
-	  camera = new dvlpThree.PerspectiveCamera(
+	  camera = new PerspectiveCamera(
 	    45,
 	    window.innerWidth / window.innerHeight,
 	    0.1,
@@ -5531,15 +5566,15 @@ var optimesh = (function (exports, dvlpThree) {
 	  scene.add(camera);
 
 	  // add subtle ambient lighting
-	  var ambientLight = new dvlpThree.AmbientLight(0x444444);
+	  var ambientLight = new AmbientLight(0x444444);
 	  scene.add(ambientLight);
 	  // add spotlight for the shadows
-	  var spotLight = new dvlpThree.SpotLight(0xffffff);
+	  var spotLight = new SpotLight(0xffffff);
 	  spotLight.position.set(-40, 60, -10);
 	  spotLight.castShadow = true;
 	  scene.add(spotLight);
 
-	  var light = new dvlpThree.HemisphereLight(0xbbbbff, 0x444422);
+	  var light = new HemisphereLight(0xbbbbff, 0x444422);
 	  light.position.set(0, 1, 0);
 	  scene.add(light);
 
@@ -5547,12 +5582,10 @@ var optimesh = (function (exports, dvlpThree) {
 	}
 
 	function setupRenderer(scene, camera, controls) {
-	  var renderer = new dvlpThree.WebGLRenderer({ antialias: true });
-	  renderer.setClearColor(new dvlpThree.Color(0.7, 0.8, 0.8));
+	  var renderer = new WebGLRenderer({ antialias: true });
+	  renderer.setClearColor(new Color$1(0.7, 0.8, 0.8));
 	  renderer.setSize(window.innerWidth, window.innerHeight);
 	  renderer.shadowMap.enabled = false;
-
-	  console.log('KUTAHOH');
 
 	  localStorage.stopEverything = 'true';
 	  setTimeout(() => {
@@ -5606,9 +5639,6 @@ var optimesh = (function (exports, dvlpThree) {
 	      modelGroup.rotation.y += controls.rotationSpeed;
 	      toWireframe(modelGroup, controls.wireframe);
 	    }
-	    if (modelOptimized) {
-	      modelOptimized.rotation.copy(modelGroup.rotation);
-	    }
 
 	    if (localStorage.stopEverything === 'false') {
 	      requestAnimationFrame(render);
@@ -5636,10 +5666,11 @@ var optimesh = (function (exports, dvlpThree) {
 
 	function setupNewObject(scene, obj, controls, domElement) {
 	  scene.remove(modelGroup);
-	  scene.remove(modelOptimized);
+	  scene.remove(modelOptimizedGroup);
 
-	  modelGroup = obj;
-	  modelOptimized = modelGroup.clone();
+	  modelGroup = new THREE.Group();
+	  modelGroup.add(obj);
+	  modelOptimized = obj.clone();
 	  if (modelOptimized) {
 	    modelOptimized.originalGeometry =
 	      modelOptimized.geometry;
@@ -5647,11 +5678,12 @@ var optimesh = (function (exports, dvlpThree) {
 	    modelOptimized.originalGeometry = modelOptimized.geometry;
 	  }
 
+	  modelOptimizedGroup.add(modelOptimized);
 	  scene.add(modelGroup);
-	  scene.add(modelOptimized);
+	  scene.add(modelOptimizedGroup);
 
 	  // update camera position to contain entire camera in view
-	  const bbox = new dvlpThree.BoxHelper(modelGroup, new dvlpThree.Color(0xff9900));
+	  const bbox = new BoxHelper(modelGroup, new Color$1(0xff9900));
 	  bbox.geometry.computeBoundingBox();
 	  const box = bbox.geometry.boundingBox;
 
@@ -5664,8 +5696,8 @@ var optimesh = (function (exports, dvlpThree) {
 	  camera.position.set(0, box.max.y - box.min.y, Math.abs(modelMaxSize * 3));
 
 
-	  if (dvlpThree.OrbitControls) {
-	    ocontrols = new dvlpThree.OrbitControls(camera, domElement);
+	  if (OrbitControls) {
+	    ocontrols = new OrbitControls(camera, domElement);
 	    ocontrols.target.set(2.5, (box.max.y - box.min.y) / 2, 0);
 	  } else {
 	    console.warn('Update this code to work with THREE 117+');
@@ -5673,7 +5705,7 @@ var optimesh = (function (exports, dvlpThree) {
 
 	  optimizeModel(controls);
 
-	  if (dvlpThree.OrbitControls) {
+	  if (OrbitControls) {
 	    ocontrols.update();
 	  }
 	}
@@ -5743,4 +5775,4 @@ var optimesh = (function (exports, dvlpThree) {
 
 	return exports;
 
-}({}, dvlpThree));
+}({}, dvlpThree$1));
