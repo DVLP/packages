@@ -1638,6 +1638,14 @@ export default () => {
     return this;
   };
 
+  Vector3.prototype.lerp = function (v, alpha) {
+    this.x += (v.x - this.x) * alpha;
+    this.y += (v.y - this.y) * alpha;
+    this.z += (v.z - this.z) * alpha;
+
+    return this;
+  };
+
   Vector3.prototype.multiplyScalar = function(scalar) {
     this.x *= scalar;
     this.y *= scalar;
