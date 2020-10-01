@@ -64,7 +64,8 @@ export default () => {
       specialCases: data.specialCases,
       specialCasesIndex: data.specialCasesIndex,
       specialFaceCases: data.specialFaceCases,
-      specialFaceCasesIndex: data.specialFaceCasesIndex
+      specialFaceCasesIndex: data.specialFaceCasesIndex,
+      modelSizeFactor: (1 / data.modelSize) * 10
     };
     dataArrayViews.collapseQueue = new Uint32Array(150);
 
@@ -972,10 +973,15 @@ export default () => {
 
     var costUV = computeUVsCost(uId, vId, dataArrayViews);
 
+    // var amt =
+    //   edgelengthSquared * curvature * curvature +
+    //   borders * borders +
+    //   costUV * costUV;
     var amt =
-      edgelengthSquared * curvature * curvature +
-      borders * borders +
-      costUV * costUV;
+      Math.sqrt(edgelengthSquared) * dataArrayViews.modelSizeFactor + // compute bounding box from vertices first and use max size to affect edge length param
+      curvature * 10 + // float 0 - 10 what if curvature is less than 1 ? it will cause
+      // borders * borders +
+      (costUV + costUV); // integer - always > 1 // what if cost uv is less than 1 ? it will cause
 
     return amt;
   }
@@ -1128,7 +1134,7 @@ export default () => {
     // shrinkMaterialSpace(fid, dataArrayViews);
   }
 
-  var moveToThisNormalValues = [new Vector3(), new Vector3(), new Vector3()];
+  var moveToThisNormalValues = new Vector3();
   var moveToSkinIndex = new Float32Array(4);
   var moveToSkinWeight = new Float32Array(4);
   var UVs = new Float32Array(2);
@@ -1201,26 +1207,27 @@ export default () => {
           );
         }
 
-        // if (u.faces[i].normal) {
-        var middleGroundNormal = getPointInBetweenByPerc(
-          getFromAttributeObj(
-            dataArrayViews.faceNormalsView,
-            faceId,
-            vertIndexOnFace,
-            2,
-            v1Temp
-          ),
-          getFromAttributeObj(
-            dataArrayViews.faceNormalsView,
-            faceId,
-            vertIndexOnFace2,
-            2,
-            v2Temp
-          ),
-          0.5
-        );
-
-        moveToThisNormalValues[0] = middleGroundNormal;
+        // interpolate between normals
+        moveToThisNormalValues
+          .copy(
+            getFromAttributeObj(
+              dataArrayViews.faceNormalsView,
+              faceId,
+              vertIndexOnFace,
+              3,
+              v1Temp
+            )
+          )
+          .lerp(
+            getFromAttributeObj(
+              dataArrayViews.faceNormalsView,
+              faceId,
+              vertIndexOnFace2,
+              3,
+              v2Temp
+            ),
+            0.5
+          );
 
         getFromAttribute(
           dataArrayViews.skinIndex,
@@ -1268,34 +1275,30 @@ export default () => {
           2
         );
 
-        //var faceVerticeUVsgetNormalsOnVertex(face, u);
-        // var faceVerticeNormals = getNormalsOnVertexId(face, u);
-        // faceVerticeNormals.copy(moveToThisNormalValues[0]);
-
-        // setOnAttribute(
-        //   dataArrayViews.faceNormalsView,
-        //   faceId,
-        //   vertIndexOnFace,
-        //   0,
-        //   moveToThisNormalValues[0].x,
-        //   3
-        // );
-        // setOnAttribute(
-        //   dataArrayViews.faceNormalsView,
-        //   faceId,
-        //   vertIndexOnFace,
-        //   1,
-        //   moveToThisNormalValues[0].y,
-        //   3
-        // );
-        // setOnAttribute(
-        //   dataArrayViews.faceNormalsView,
-        //   faceId,
-        //   vertIndexOnFace,
-        //   2,
-        //   moveToThisNormalValues[0].z,
-        //   3
-        // );
+        setOnAttribute(
+          dataArrayViews.faceNormalsView,
+          faceId,
+          vertIndexOnFace,
+          0,
+          moveToThisNormalValues.x,
+          3
+        );
+        setOnAttribute(
+          dataArrayViews.faceNormalsView,
+          faceId,
+          vertIndexOnFace,
+          1,
+          moveToThisNormalValues.y,
+          3
+        );
+        setOnAttribute(
+          dataArrayViews.faceNormalsView,
+          faceId,
+          vertIndexOnFace,
+          2,
+          moveToThisNormalValues.z,
+          3
+        );
 
         for (var j = 0; j < 4; j++) {
           // setOnAttribute(dataArrayViews.skinIndex, faceId, vertIndexOnFace, j, moveToSkinIndex[j], 4);
@@ -1373,13 +1376,6 @@ export default () => {
   ) {
     getFromAttribute(attribute, faceId, vertexIndexOnFace, itemSize, tempArr);
     return target.fromArray(tempArr);
-  }
-
-  function getPointInBetweenByPerc(pointA, pointB, percentage) {
-    var dir = v1Temp.copy(pointB).sub(pointA);
-    var len = dir.length();
-    dir = dir.normalize().multiplyScalar(len * percentage);
-    return dir.add(pointA);
   }
 
   function getUVsOnVertexId(faceId, vertexId, dataArrayViews, target) {

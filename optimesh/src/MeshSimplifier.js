@@ -5,7 +5,6 @@ import {
 } from 'dvlp-three';
 import { addToSBWithOversize, emptyOversizedContainer, emptyOversizedContainerIndex, removeFieldFromSBWithOversize, zeroFill } from './BufferArrayManager';
 import * as CostWorker from './Worker/simplify.worker.js';
-
 import { getIndexedPositions } from './Utils';
 export class WebWorker {
   constructor(worker) {
@@ -27,6 +26,8 @@ export class WebWorker {
  */
 const FIELDS_NO = 30;
 const FIELDS_OVERSIZE = 500;
+// if this value is below 10k workers start overlapping each other's work(neighbours can be outside worker's range, there's a locking mechanism for this but not perfect)
+const MIN_VERTICES_PER_WORKER = 50000;
 const OVERSIZE_CONTAINER_CAPACITY = 2000;
 let reqId = 0;
 let totalAvailableWorkers = navigator.hardwareConcurrency;
@@ -74,6 +75,18 @@ export function meshSimplifier(
   attempt = 0,
   resolveTop
 ) {
+  if (!modelSize) {
+    var box = geometry.boundingBox;
+    if (!box) {
+      geometry.computeBoundingBox();
+      box = geometry.boundingBox;
+    }
+    modelSize = Math.max(
+      box.max.x - box.min.x,
+      box.max.y - box.min.y,
+      box.max.z - box.min.z
+    );
+  };
   return new Promise((resolve, reject) => {
     if (discardSimpleGeometry(geometry)) {
       return resolve(geometry);
@@ -1276,10 +1289,9 @@ function getVertexIndexOnFaceId(faceId, vertexId, facesView) {
 function requestFreeWorkers(workers, verticesLength, onWorkersReady) {
   // at least 2000 vertices per worker, limit amount of workers
   const availableWorkersAmount = workers.length;
-  const minVerticesPerWorker = 4000;
   let maxWorkers = Math.max(
     1,
-    Math.round(verticesLength / minVerticesPerWorker)
+    Math.round(verticesLength / MIN_VERTICES_PER_WORKER)
   );
 
   if (!workers.length) {
@@ -1344,7 +1356,7 @@ function sendWorkToWorkers(
     //   'out of',
     //   workersAmount,
     //   'available workers(at least',
-    //   minVerticesPerWorker,
+    //   MIN_VERTICES_PER_WORKER,
     //   'vertices per worker)'
     //   'vertices per worker)'
     // );

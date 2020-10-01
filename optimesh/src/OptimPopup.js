@@ -1,12 +1,11 @@
 import { meshSimplifier, killWorkers, createWorkers } from './MeshSimplifier';
-// import OrbitControls from './components/orbitControls.js';
-// import Loader from './components/Loader.js';
 import * as dat from 'dat.gui';
-import * as dvlpThree from 'dvlp-three'; // for legacy crash-free OrbitControls access
-import { AmbientLight, BoxHelper, Color, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer } from 'dvlp-three';
+
+// NO NEED TO IMPORT dvlpThree - it's added by rollup so it works with both THREE and dvlpThreee
+const { AmbientLight, BoxHelper, Color, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer, OrbitControls } = dvlpThree
 // import { OrbitControls } from 'dvlp-three/examples/jsm/controls/OrbitControls.js';
 
-var camera, ocontrols, modelGroup, modelOptimized, modelMaxSize, fileLoader, close, done;
+var camera, ocontrols, modelGroup, modelOptimized, modelOptimizedGroup, modelMaxSize, fileLoader, close, done;
 
 export function openOptimizer (model, onDone) {
   const webglContainer = createDOM(onDone);
@@ -166,8 +165,6 @@ function setupRenderer(scene, camera, controls) {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = false;
 
-  console.log('KUTAHOH');
-
   localStorage.stopEverything = 'true';
   setTimeout(() => {
     localStorage.stopEverything = 'false';
@@ -220,8 +217,8 @@ function getRenderer(scene, camera, renderer, controls) {
       modelGroup.rotation.y += controls.rotationSpeed;
       toWireframe(modelGroup, controls.wireframe);
     }
-    if (modelOptimized) {
-      modelOptimized.rotation.copy(modelGroup.rotation);
+    if (modelOptimizedGroup) {
+      modelOptimizedGroup.rotation.copy(modelGroup.rotation);
     }
 
     if (localStorage.stopEverything === 'false') {
@@ -250,10 +247,11 @@ function toWireframe(obj, wireframeMode) {
 
 function setupNewObject(scene, obj, controls, domElement) {
   scene.remove(modelGroup);
-  scene.remove(modelOptimized);
+  scene.remove(modelOptimizedGroup);
 
-  modelGroup = obj;
-  modelOptimized = modelGroup.clone();
+  modelGroup = new THREE.Group();
+  modelGroup.add(obj);
+  modelOptimized = obj.clone();
   if (modelOptimized) {
     modelOptimized.originalGeometry =
       modelOptimized.geometry;
@@ -261,8 +259,9 @@ function setupNewObject(scene, obj, controls, domElement) {
     modelOptimized.originalGeometry = modelOptimized.geometry;
   }
 
+  modelOptimizedGroup.add(modelOptimized);
   scene.add(modelGroup);
-  scene.add(modelOptimized);
+  scene.add(modelOptimizedGroup);
 
   // update camera position to contain entire camera in view
   const bbox = new BoxHelper(modelGroup, new Color(0xff9900));
@@ -278,8 +277,8 @@ function setupNewObject(scene, obj, controls, domElement) {
   camera.position.set(0, box.max.y - box.min.y, Math.abs(modelMaxSize * 3));
 
 
-  if (dvlpThree.OrbitControls) {
-    ocontrols = new dvlpThree.OrbitControls(camera, domElement);
+  if (OrbitControls) {
+    ocontrols = new OrbitControls(camera, domElement);
     ocontrols.target.set(2.5, (box.max.y - box.min.y) / 2, 0);
   } else {
     console.warn('Update this code to work with THREE 117+');
@@ -287,7 +286,7 @@ function setupNewObject(scene, obj, controls, domElement) {
 
   optimizeModel(controls);
 
-  if (dvlpThree.OrbitControls) {
+  if (OrbitControls) {
     ocontrols.update();
   }
 }
