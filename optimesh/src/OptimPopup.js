@@ -287,7 +287,7 @@ function setupNewObject(scene, obj, controls, domElement) {
 
   if (OrbitControls) {
     ocontrols = new OrbitControls(camera, domElement);
-    ocontrols.target.set(modelMaxWidthDepth / 2, (box.max.y - box.min.y) / 2, 0);
+    ocontrols.target.set(modelMaxWidthDepth / 2, (boxScale.max.y - boxScale.min.y) / 2, 0);
   } else {
     console.warn('Update this code to work with THREE 117+');
   }
