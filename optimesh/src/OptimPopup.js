@@ -259,6 +259,7 @@ function setupNewObject(scene, obj, controls, domElement) {
     modelOptimized.originalGeometry = modelOptimized.geometry;
   }
 
+  modelOptimizedGroup = new Group();
   modelOptimizedGroup.add(modelOptimized);
   scene.add(modelGroup);
   scene.add(modelOptimizedGroup);
