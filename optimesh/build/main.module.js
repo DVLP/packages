@@ -5642,6 +5642,9 @@ function getRenderer(scene, camera, renderer, controls) {
       modelGroup.rotation.y += controls.rotationSpeed;
       toWireframe(modelGroup, controls.wireframe);
     }
+    if (modelOptimizedGroup) {
+      modelOptimizedGroup.rotation.copy(modelGroup.rotation);
+    }
 
     if (localStorage.stopEverything === 'false') {
       requestAnimationFrame(render);
@@ -5681,6 +5684,7 @@ function setupNewObject(scene, obj, controls, domElement) {
     modelOptimized.originalGeometry = modelOptimized.geometry;
   }
 
+  modelOptimizedGroup = new Group();
   modelOptimizedGroup.add(modelOptimized);
   scene.add(modelGroup);
   scene.add(modelOptimizedGroup);
