@@ -2,10 +2,10 @@ import { meshSimplifier, killWorkers, createWorkers } from './MeshSimplifier';
 import * as dat from 'dat.gui';
 
 // NO NEED TO IMPORT dvlpThree - it's added by rollup so it works with both THREE and dvlpThreee
-const { AmbientLight, BoxHelper, Color, Group, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer, OrbitControls } = dvlpThree
+const { AmbientLight, Box3, Color, Group, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer, OrbitControls } = dvlpThree
 // import { OrbitControls } from 'dvlp-three/examples/jsm/controls/OrbitControls.js';
 
-var camera, ocontrols, modelGroup, modelOptimized, modelOptimizedGroup, modelMaxSize, fileLoader, close, done;
+var camera, ocontrols, modelGroup, modelOptimized, modelOptimizedGroup, modelMaxSize, modelMaxWidthDepth, fileLoader, close, done;
 
 export function openOptimizer (model, onDone) {
   const webglContainer = createDOM(onDone);
@@ -55,7 +55,7 @@ function createDOM () {
     parent.removeChild(webglOutput);
     parent.removeChild(closeButton);
     document.body.removeChild(parent);
-    camera = ocontrols = modelGroup = modelOptimized = modelMaxSize = fileLoader = null;
+    camera = ocontrols = modelGroup = modelOptimized = modelMaxSize = modelMaxWidthDepth = fileLoader = null;
   };
 
   return webglOutput;
@@ -208,7 +208,7 @@ function optimizeModel(controls) {
 
   recursivelyOptimize(modelOptimized, controls);
 
-  modelOptimizedGroup.position.x = modelMaxSize;
+  modelOptimizedGroup.position.x = modelMaxWidthDepth;
 }
 
 function getRenderer(scene, camera, renderer, controls) {
@@ -265,22 +265,29 @@ function setupNewObject(scene, obj, controls, domElement) {
   scene.add(modelOptimizedGroup);
 
   // update camera position to contain entire camera in view
-  const bbox = new BoxHelper(modelGroup, new Color(0xff9900));
-  bbox.geometry.computeBoundingBox();
-  const box = bbox.geometry.boundingBox;
+  const boxScale = new Box3();
+  boxScale.setFromObject(modelGroup);
+  modelMaxWidthDepth =
+    Math.max(
+      boxScale.max.x - boxScale.min.x,
+      boxScale.max.z - boxScale.min.z
+    ) * 1.1; // * 1.1 for padding
 
   modelMaxSize = Math.max(
-    box.max.x - box.min.x,
-    box.max.y - box.min.y,
-    box.max.z - box.min.z
+    boxScale.max.x - boxScale.min.x,
+    boxScale.max.y - boxScale.min.y,
+    boxScale.max.z - boxScale.min.z
   );
 
-  camera.position.set(0, box.max.y - box.min.y, Math.abs(modelMaxSize * 3));
-
+  camera.position.set(
+    0,
+    boxScale.max.y - boxScale.min.y,
+    Math.abs(modelMaxSize * 3)
+  );
 
   if (OrbitControls) {
     ocontrols = new OrbitControls(camera, domElement);
-    ocontrols.target.set(2.5, (box.max.y - box.min.y) / 2, 0);
+    ocontrols.target.set(modelMaxWidthDepth / 2, (box.max.y - box.min.y) / 2, 0);
   } else {
     console.warn('Update this code to work with THREE 117+');
   }
