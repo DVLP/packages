@@ -1523,7 +1523,8 @@ export default () => {
         collapse(nextVertexId, neighbourId, preserveTexture, dataArrayViews);
       } catch (e) {
         console.error('not collapsed' + e.message);
-        throw e;
+        // in case of an error add vertex to done but continue
+        dataArrayViews.vertexWorkStatus[nextVertexId] = 2
       }
       // WARNING: don't reset skip if any kind of failure happens above
       skip = 0;
