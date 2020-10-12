@@ -11,15 +11,17 @@ export default {
       name: 'optimesh',
       file: 'build/main.js',
       indent: '\t',
-      banner: 'var dvlpThree = (typeof dvlpThree !== \'undefined\' && dvlpThree) || (typeof THREE !== \'undefined\' && THREE);',
-      external: ['dvlp-three']
+      banner: 'var dvlpThree = (typeof dvlpThree !== \'undefined\' && dvlpThree) || (typeof dvlpThree$1 !== \'undefined\' && dvlpThree$1) || (typeof THREE !== \'undefined\' && THREE);',
+      external: ['dvlp-three', 'dvlpThree'],
+      globals: ['dvlp-three', 'dvlpThree']
     },
     {
       format: 'es',
       file: 'build/main.module.js',
       indent: '\t',
-      banner: 'var dvlpThree = (typeof dvlpThree !== \'undefined\' && dvlpThree) || (typeof THREE !== \'undefined\' && THREE);',
-      external: ['dvlp-three']
+      banner: 'var dvlpThree = (typeof dvlpThree !== \'undefined\' && dvlpThree) || (typeof dvlpThree$1 !== \'undefined\' && dvlpThree$1) || (typeof THREE !== \'undefined\' && THREE);',
+      external: ['dvlp-three', 'dvlpThree'],
+      globals: ['dvlp-three', 'dvlpThree']
     }
   ],
   plugins    : [

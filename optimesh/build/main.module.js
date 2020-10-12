@@ -1,6 +1,4 @@
-var dvlpThree = (typeof dvlpThree !== 'undefined' && dvlpThree) || (typeof THREE !== 'undefined' && THREE);
-import { Vector3, Vector2, BufferGeometry, BufferAttribute } from 'dvlp-three';
-
+var dvlpThree = (typeof dvlpThree !== 'undefined' && dvlpThree) || (typeof dvlpThree$1 !== 'undefined' && dvlpThree$1) || (typeof THREE !== 'undefined' && THREE);
 // BELOW FLAT ARRAYS MANAGER
 const FIELDS_OVERSIZE = 500;
 const OVERSIZE_CONTAINER_CAPACITY = 2000;
@@ -2047,11 +2045,10 @@ const getIndexedPositions = (function() {
   };
 })();
 
-// const {
-//   BufferGeometry,
-//   BufferAttribute,
-//   Vector2, Vector3
-// } = dvlpThree;
+// import { Vector2, Vector3, BufferAttribute, BufferGeometry } from 'dvlp-three';
+const {
+  Vector2, Vector3, BufferAttribute, BufferGeometry
+} = dvlpThree;
 class WebWorker {
   constructor(worker) {
     const blob = new Blob(['(' + worker.toString() + ')()'], {

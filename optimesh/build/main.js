@@ -1,5 +1,5 @@
-var dvlpThree = (typeof dvlpThree !== 'undefined' && dvlpThree) || (typeof THREE !== 'undefined' && THREE);
-var optimesh = (function (exports, dvlpThree$1) {
+var dvlpThree = (typeof dvlpThree !== 'undefined' && dvlpThree) || (typeof dvlpThree$1 !== 'undefined' && dvlpThree$1) || (typeof THREE !== 'undefined' && THREE);
+var optimesh = (function (exports) {
 	'use strict';
 
 	// BELOW FLAT ARRAYS MANAGER
@@ -2048,11 +2048,10 @@ var optimesh = (function (exports, dvlpThree$1) {
 	  };
 	})();
 
-	// const {
-	//   BufferGeometry,
-	//   BufferAttribute,
-	//   Vector2, Vector3
-	// } = dvlpThree;
+	// import { Vector2, Vector3, BufferAttribute, BufferGeometry } from 'dvlp-three';
+	const {
+	  Vector2, Vector3, BufferAttribute, BufferGeometry
+	} = dvlpThree;
 	class WebWorker {
 	  constructor(worker) {
 	    const blob = new Blob(['(' + worker.toString() + ')()'], {
@@ -2378,11 +2377,11 @@ var optimesh = (function (exports, dvlpThree$1) {
 	}
 
 	// borrowed from geometry
-	var cb = new dvlpThree$1.Vector3(),
-	  ab = new dvlpThree$1.Vector3();
-	var v1Temp = new dvlpThree$1.Vector3(),
-	  v2Temp = new dvlpThree$1.Vector3();
-	var v2Tmp = new dvlpThree$1.Vector2();
+	var cb = new Vector3(),
+	  ab = new Vector3();
+	var v1Temp = new Vector3(),
+	  v2Temp = new Vector3();
+	var v2Tmp = new Vector2();
 	function computeFaceNormal(faceId, facesView, verticesView) {
 	  getVertexOnFaceId(faceId, facesView, verticesView, 1, v1Temp);
 	  getVertexOnFaceId(faceId, facesView, verticesView, 2, v2Temp);
@@ -2689,7 +2688,7 @@ var optimesh = (function (exports, dvlpThree$1) {
 	  preserveTexture,
 	  geometry
 	) {
-	  const geo = new dvlpThree$1.BufferGeometry();
+	  const geo = new BufferGeometry();
 	  geo.name = geometry.name;
 	  let faceCount = 0;
 
@@ -2709,7 +2708,7 @@ var optimesh = (function (exports, dvlpThree$1) {
 
 	  if (geometry.index) {
 	    const [newindex, mapOldToNewIndex] = reindex(faces);
-	    geo.setIndex(new dvlpThree$1.BufferAttribute(newindex, 1));
+	    geo.setIndex(new BufferAttribute(newindex, 1));
 
 	    const attributes = [
 	      {
@@ -2748,7 +2747,7 @@ var optimesh = (function (exports, dvlpThree$1) {
 
 	      const reindexedAttribute = reindexAttribute(attrib.array, mapOldToNewIndex, attrib.itemSize);
 	      const setAttribute = geo.setAttribute ? geo.setAttribute : geo.addAttribute;
-	      setAttribute.call(geo, attrib.name, new dvlpThree$1.BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
+	      setAttribute.call(geo, attrib.name, new BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
 	      // const bufferAttribute = new Float32Array(faceCount * 3 * attrib.itemSize);
 	      // count = 0;
 	      // for (i = 0; i < faces.length / 3; i++) {
@@ -2835,22 +2834,22 @@ var optimesh = (function (exports, dvlpThree$1) {
 	  const setAttribute = geo.setAttribute ? geo.setAttribute : geo.addAttribute;
 
 	  if (!geometry.index) {
-	    setAttribute.call(geo, 'position', new dvlpThree$1.BufferAttribute(positions, 3));
+	    setAttribute.call(geo, 'position', new BufferAttribute(positions, 3));
 
 	    if (normals.length > 0) {
-	      setAttribute.call(geo, 'normal', new dvlpThree$1.BufferAttribute(normals, 3));
+	      setAttribute.call(geo, 'normal', new BufferAttribute(normals, 3));
 	    }
 
 	    if (uvs.length > 0) {
-	      setAttribute.call(geo, 'uv', new dvlpThree$1.BufferAttribute(uvs, 2));
+	      setAttribute.call(geo, 'uv', new BufferAttribute(uvs, 2));
 	    }
 
 	    if (skinIndexArr.length > 0) {
-	      setAttribute.call(geo, 'skinIndex', new dvlpThree$1.BufferAttribute(skinIndexArr, 4));
+	      setAttribute.call(geo, 'skinIndex', new BufferAttribute(skinIndexArr, 4));
 	    }
 
 	    if (skinWeightArr.length > 0) {
-	      setAttribute.call(geo, 'skinWeight', new dvlpThree$1.BufferAttribute(skinWeightArr, 4));
+	      setAttribute.call(geo, 'skinWeight', new BufferAttribute(skinWeightArr, 4));
 	    }
 	  }
 
@@ -5798,4 +5797,4 @@ var optimesh = (function (exports, dvlpThree$1) {
 
 	return exports;
 
-}({}, dvlpThree$1));
+}({}));
