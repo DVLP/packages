@@ -216,9 +216,9 @@ function getRenderer(scene, camera, renderer, controls) {
     if (modelGroup) {
       modelGroup.rotation.y += controls.rotationSpeed;
       toWireframe(modelGroup, controls.wireframe);
-    }
-    if (modelOptimizedGroup) {
-      modelOptimizedGroup.rotation.copy(modelGroup.rotation);
+      if (modelOptimizedGroup) {
+        modelOptimizedGroup.rotation.copy(modelGroup.rotation);
+      }
     }
 
     if (localStorage.stopEverything === 'false') {

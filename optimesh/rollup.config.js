@@ -11,15 +11,15 @@ export default {
       name: 'optimesh',
       file: 'build/main.js',
       indent: '\t',
-      banner: 'var dvlpThree = dvlpThree || THREE;',
-      external: ['dvlp-three', 'dvlpThree', 'THREE']
+      banner: 'var dvlpThree = (typeof dvlpThree !== \'undefined\' && dvlpThree) || (typeof THREE !== \'undefined\' && THREE);',
+      external: ['dvlp-three']
     },
     {
       format: 'es',
       file: 'build/main.module.js',
       indent: '\t',
-      banner: 'var dvlpThree = dvlpThree || THREE;',
-      external: ['dvlp-three', 'dvlpThree', 'THREE']
+      banner: 'var dvlpThree = (typeof dvlpThree !== \'undefined\' && dvlpThree) || (typeof THREE !== \'undefined\' && THREE);',
+      external: ['dvlp-three']
     }
   ],
   plugins    : [

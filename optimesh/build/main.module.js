@@ -1,4 +1,6 @@
-var dvlpThree = dvlpThree || THREE;
+var dvlpThree = (typeof dvlpThree !== 'undefined' && dvlpThree) || (typeof THREE !== 'undefined' && THREE);
+import { Vector3, Vector2, BufferGeometry, BufferAttribute } from 'dvlp-three';
+
 // BELOW FLAT ARRAYS MANAGER
 const FIELDS_OVERSIZE = 500;
 const OVERSIZE_CONTAINER_CAPACITY = 2000;
@@ -1425,7 +1427,8 @@ var simplify_worker = () => {
         collapse(nextVertexId, neighbourId, preserveTexture, dataArrayViews);
       } catch (e) {
         console.error('not collapsed' + e.message);
-        throw e;
+        // in case of an error add vertex to done but continue
+        dataArrayViews.vertexWorkStatus[nextVertexId] = 2;
       }
       // WARNING: don't reset skip if any kind of failure happens above
       skip = 0;
@@ -2044,11 +2047,11 @@ const getIndexedPositions = (function() {
   };
 })();
 
-const {
-  BufferGeometry,
-  BufferAttribute,
-  Vector3
-} = dvlpThree;
+// const {
+//   BufferGeometry,
+//   BufferAttribute,
+//   Vector2, Vector3
+// } = dvlpThree;
 class WebWorker {
   constructor(worker) {
     const blob = new Blob(['(' + worker.toString() + ')()'], {
@@ -2373,6 +2376,36 @@ function loadBufferGeometry(dataArrays, geometry) {
   });
 }
 
+// borrowed from geometry
+var cb = new Vector3(),
+  ab = new Vector3();
+var v1Temp = new Vector3(),
+  v2Temp = new Vector3();
+var v2Tmp = new Vector2();
+function computeFaceNormal(faceId, facesView, verticesView) {
+  getVertexOnFaceId(faceId, facesView, verticesView, 1, v1Temp);
+  getVertexOnFaceId(faceId, facesView, verticesView, 2, v2Temp);
+
+  cb.subVectors(v2Temp, v1Temp);
+
+  getVertexOnFaceId(faceId, facesView, verticesView, 0, v2Temp);
+  ab.subVectors(v2Temp, v1Temp);
+  cb.cross(ab);
+  cb.normalize();
+
+  // do not pass around, this will mutate
+  return cb;
+}
+
+function getVertexOnFaceId(faceId, facesView, verticesView, index, target) {
+  const vertexId = facesView[faceId * 3 + index];
+  target.set(
+    verticesView[vertexId * 3],
+    verticesView[vertexId * 3 + 1],
+    verticesView[vertexId * 3 + 2]
+  );
+}
+
 function loadGeometry(dataArrays, geometry) {
   const {
     verticesView,
@@ -2425,40 +2458,6 @@ function loadGeometry(dataArrays, geometry) {
     faceMaterialIndexView[i] = faces[i].materialIndex;
   }
 }
-
-function getVertexOnFaceId(faceId, facesView, verticesView, index, target) {
-  const vertexId = facesView[faceId * 3 + index];
-  target.set(
-    verticesView[vertexId * 3],
-    verticesView[vertexId * 3 + 1],
-    verticesView[vertexId * 3 + 2]
-  );
-}
-
-// borrowed from geometry
-var cb = new Vector3(),
-  ab = new Vector3();
-var v1Temp = new Vector3(),
-  v2Temp = new Vector3();
-function computeFaceNormal(faceId, facesView, verticesView) {
-  getVertexOnFaceId(faceId, facesView, verticesView, 1, v1Temp);
-  getVertexOnFaceId(faceId, facesView, verticesView, 2, v2Temp);
-
-  cb.subVectors(v2Temp, v1Temp);
-
-  getVertexOnFaceId(faceId, facesView, verticesView, 0, v2Temp);
-  ab.subVectors(v2Temp, v1Temp);
-  cb.cross(ab);
-  cb.normalize();
-
-  // do not pass around, this will mutate
-  return cb;
-}
-
-const posA = new Vector3();
-const posB = new Vector3();
-
-var moveToThisNormalValues = [new Vector3(), new Vector3(), new Vector3()];
 
 function requestFreeWorkers(workers, verticesLength, onWorkersReady) {
   // at least 2000 vertices per worker, limit amount of workers
@@ -2864,6 +2863,7 @@ function createNewBufferGeometry(
     uvs.length
   );
 
+  // TODO: import cost worker code locally
   // console.timeEnd('Mesh simplification');
   // if (typeof SharedArrayBuffer === 'undefined') {
   //   // simulate worker
@@ -5649,9 +5649,9 @@ function getRenderer(scene, camera, renderer, controls) {
     if (modelGroup) {
       modelGroup.rotation.y += controls.rotationSpeed;
       toWireframe(modelGroup, controls.wireframe);
-    }
-    if (modelOptimizedGroup) {
-      modelOptimizedGroup.rotation.copy(modelGroup.rotation);
+      if (modelOptimizedGroup) {
+        modelOptimizedGroup.rotation.copy(modelGroup.rotation);
+      }
     }
 
     if (localStorage.stopEverything === 'false') {

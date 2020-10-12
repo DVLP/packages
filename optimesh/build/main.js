@@ -1,5 +1,5 @@
-var dvlpThree = dvlpThree || THREE;
-var optimesh = (function (exports) {
+var dvlpThree = (typeof dvlpThree !== 'undefined' && dvlpThree) || (typeof THREE !== 'undefined' && THREE);
+var optimesh = (function (exports, dvlpThree$1) {
 	'use strict';
 
 	// BELOW FLAT ARRAYS MANAGER
@@ -1428,7 +1428,8 @@ var optimesh = (function (exports) {
 	        collapse(nextVertexId, neighbourId, preserveTexture, dataArrayViews);
 	      } catch (e) {
 	        console.error('not collapsed' + e.message);
-	        throw e;
+	        // in case of an error add vertex to done but continue
+	        dataArrayViews.vertexWorkStatus[nextVertexId] = 2;
 	      }
 	      // WARNING: don't reset skip if any kind of failure happens above
 	      skip = 0;
@@ -2047,11 +2048,11 @@ var optimesh = (function (exports) {
 	  };
 	})();
 
-	const {
-	  BufferGeometry,
-	  BufferAttribute,
-	  Vector3
-	} = dvlpThree;
+	// const {
+	//   BufferGeometry,
+	//   BufferAttribute,
+	//   Vector2, Vector3
+	// } = dvlpThree;
 	class WebWorker {
 	  constructor(worker) {
 	    const blob = new Blob(['(' + worker.toString() + ')()'], {
@@ -2376,6 +2377,36 @@ var optimesh = (function (exports) {
 	  });
 	}
 
+	// borrowed from geometry
+	var cb = new dvlpThree$1.Vector3(),
+	  ab = new dvlpThree$1.Vector3();
+	var v1Temp = new dvlpThree$1.Vector3(),
+	  v2Temp = new dvlpThree$1.Vector3();
+	var v2Tmp = new dvlpThree$1.Vector2();
+	function computeFaceNormal(faceId, facesView, verticesView) {
+	  getVertexOnFaceId(faceId, facesView, verticesView, 1, v1Temp);
+	  getVertexOnFaceId(faceId, facesView, verticesView, 2, v2Temp);
+
+	  cb.subVectors(v2Temp, v1Temp);
+
+	  getVertexOnFaceId(faceId, facesView, verticesView, 0, v2Temp);
+	  ab.subVectors(v2Temp, v1Temp);
+	  cb.cross(ab);
+	  cb.normalize();
+
+	  // do not pass around, this will mutate
+	  return cb;
+	}
+
+	function getVertexOnFaceId(faceId, facesView, verticesView, index, target) {
+	  const vertexId = facesView[faceId * 3 + index];
+	  target.set(
+	    verticesView[vertexId * 3],
+	    verticesView[vertexId * 3 + 1],
+	    verticesView[vertexId * 3 + 2]
+	  );
+	}
+
 	function loadGeometry(dataArrays, geometry) {
 	  const {
 	    verticesView,
@@ -2428,40 +2459,6 @@ var optimesh = (function (exports) {
 	    faceMaterialIndexView[i] = faces[i].materialIndex;
 	  }
 	}
-
-	function getVertexOnFaceId(faceId, facesView, verticesView, index, target) {
-	  const vertexId = facesView[faceId * 3 + index];
-	  target.set(
-	    verticesView[vertexId * 3],
-	    verticesView[vertexId * 3 + 1],
-	    verticesView[vertexId * 3 + 2]
-	  );
-	}
-
-	// borrowed from geometry
-	var cb = new Vector3(),
-	  ab = new Vector3();
-	var v1Temp = new Vector3(),
-	  v2Temp = new Vector3();
-	function computeFaceNormal(faceId, facesView, verticesView) {
-	  getVertexOnFaceId(faceId, facesView, verticesView, 1, v1Temp);
-	  getVertexOnFaceId(faceId, facesView, verticesView, 2, v2Temp);
-
-	  cb.subVectors(v2Temp, v1Temp);
-
-	  getVertexOnFaceId(faceId, facesView, verticesView, 0, v2Temp);
-	  ab.subVectors(v2Temp, v1Temp);
-	  cb.cross(ab);
-	  cb.normalize();
-
-	  // do not pass around, this will mutate
-	  return cb;
-	}
-
-	const posA = new Vector3();
-	const posB = new Vector3();
-
-	var moveToThisNormalValues = [new Vector3(), new Vector3(), new Vector3()];
 
 	function requestFreeWorkers(workers, verticesLength, onWorkersReady) {
 	  // at least 2000 vertices per worker, limit amount of workers
@@ -2692,7 +2689,7 @@ var optimesh = (function (exports) {
 	  preserveTexture,
 	  geometry
 	) {
-	  const geo = new BufferGeometry();
+	  const geo = new dvlpThree$1.BufferGeometry();
 	  geo.name = geometry.name;
 	  let faceCount = 0;
 
@@ -2712,7 +2709,7 @@ var optimesh = (function (exports) {
 
 	  if (geometry.index) {
 	    const [newindex, mapOldToNewIndex] = reindex(faces);
-	    geo.setIndex(new BufferAttribute(newindex, 1));
+	    geo.setIndex(new dvlpThree$1.BufferAttribute(newindex, 1));
 
 	    const attributes = [
 	      {
@@ -2751,7 +2748,7 @@ var optimesh = (function (exports) {
 
 	      const reindexedAttribute = reindexAttribute(attrib.array, mapOldToNewIndex, attrib.itemSize);
 	      const setAttribute = geo.setAttribute ? geo.setAttribute : geo.addAttribute;
-	      setAttribute.call(geo, attrib.name, new BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
+	      setAttribute.call(geo, attrib.name, new dvlpThree$1.BufferAttribute(reindexedAttribute, attrib.itemSize)); // TODO: when changing 3 to attrib.itemSize it all breaks
 	      // const bufferAttribute = new Float32Array(faceCount * 3 * attrib.itemSize);
 	      // count = 0;
 	      // for (i = 0; i < faces.length / 3; i++) {
@@ -2838,22 +2835,22 @@ var optimesh = (function (exports) {
 	  const setAttribute = geo.setAttribute ? geo.setAttribute : geo.addAttribute;
 
 	  if (!geometry.index) {
-	    setAttribute.call(geo, 'position', new BufferAttribute(positions, 3));
+	    setAttribute.call(geo, 'position', new dvlpThree$1.BufferAttribute(positions, 3));
 
 	    if (normals.length > 0) {
-	      setAttribute.call(geo, 'normal', new BufferAttribute(normals, 3));
+	      setAttribute.call(geo, 'normal', new dvlpThree$1.BufferAttribute(normals, 3));
 	    }
 
 	    if (uvs.length > 0) {
-	      setAttribute.call(geo, 'uv', new BufferAttribute(uvs, 2));
+	      setAttribute.call(geo, 'uv', new dvlpThree$1.BufferAttribute(uvs, 2));
 	    }
 
 	    if (skinIndexArr.length > 0) {
-	      setAttribute.call(geo, 'skinIndex', new BufferAttribute(skinIndexArr, 4));
+	      setAttribute.call(geo, 'skinIndex', new dvlpThree$1.BufferAttribute(skinIndexArr, 4));
 	    }
 
 	    if (skinWeightArr.length > 0) {
-	      setAttribute.call(geo, 'skinWeight', new BufferAttribute(skinWeightArr, 4));
+	      setAttribute.call(geo, 'skinWeight', new dvlpThree$1.BufferAttribute(skinWeightArr, 4));
 	    }
 	  }
 
@@ -2867,6 +2864,7 @@ var optimesh = (function (exports) {
 	    uvs.length
 	  );
 
+	  // TODO: import cost worker code locally
 	  // console.timeEnd('Mesh simplification');
 	  // if (typeof SharedArrayBuffer === 'undefined') {
 	  //   // simulate worker
@@ -5652,9 +5650,9 @@ var optimesh = (function (exports) {
 	    if (modelGroup) {
 	      modelGroup.rotation.y += controls.rotationSpeed;
 	      toWireframe(modelGroup, controls.wireframe);
-	    }
-	    if (modelOptimizedGroup) {
-	      modelOptimizedGroup.rotation.copy(modelGroup.rotation);
+	      if (modelOptimizedGroup) {
+	        modelOptimizedGroup.rotation.copy(modelGroup.rotation);
+	      }
 	    }
 
 	    if (localStorage.stopEverything === 'false') {
@@ -5800,4 +5798,4 @@ var optimesh = (function (exports) {
 
 	return exports;
 
-}({}));
+}({}, dvlpThree$1));
