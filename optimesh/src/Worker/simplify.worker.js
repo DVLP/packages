@@ -8,7 +8,6 @@ export default () => {
   let reattemptIntervalCount = 20;
   let currentReqId = -1;
   let previousDataArrayViews = null;
-  let modelSize = 0;
 
   self.onmessage = function(e) {
     var functionName = e.data.task;
@@ -65,7 +64,7 @@ export default () => {
       specialCasesIndex: data.specialCasesIndex,
       specialFaceCases: data.specialFaceCases,
       specialFaceCasesIndex: data.specialFaceCasesIndex,
-      modelSizeFactor: (1 / data.modelSize) * 10
+      modelSizeFactor: (1 / data.modelSize)
     };
     dataArrayViews.collapseQueue = new Uint32Array(150);
 
@@ -80,7 +79,6 @@ export default () => {
     reportWorkerId = workerIndex;
     reportTotalWorkers = totalWorkers;
     currentReqId = data.reqId;
-    modelSize = data.modelSize;
 
     let range = Math.floor(
       dataArrayViews.verticesView.length / 3 / totalWorkers
@@ -1522,7 +1520,7 @@ export default () => {
       try {
         collapse(nextVertexId, neighbourId, preserveTexture, dataArrayViews);
       } catch (e) {
-        console.error('not collapsed' + e.message);
+        console.warn('not collapsed' + e.message);
         // in case of an error add vertex to done but continue
         dataArrayViews.vertexWorkStatus[nextVertexId] = 2
       }

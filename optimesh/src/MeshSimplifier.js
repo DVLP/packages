@@ -678,6 +678,24 @@ function createNewBufferGeometry(
     faceCount++;
   }
 
+  // reindex atlasGroups
+  if (geometry.userData.atlasGroups) {
+    const atlasGroups = JSON.parse(JSON.stringify(geometry.userData.atlasGroups))
+    let totalSkipped = 0
+    atlasGroups.forEach(group => {
+      let skippedInGroup = 0
+      for (let i = group.start, l = group.start + group.count; i < l; i += 3) {
+        if (faces[i] === -1) {
+          skippedInGroup += 3
+        }
+      }
+      group.start = group.start - totalSkipped
+      group.count = group.count - skippedInGroup
+      totalSkipped += skippedInGroup
+    })
+    geo.userData.atlasGroups = atlasGroups
+  }
+
   // console.log('Faces reduction from : ', faces.length / 3, 'to', faceCount);
   var positions = new Float32Array(faceCount * 9); // faces * 3 vertices * vector3
   var normals = new Float32Array(faceCount * 9);

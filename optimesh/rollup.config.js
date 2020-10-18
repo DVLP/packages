@@ -19,9 +19,8 @@ export default {
       format: 'es',
       file: 'build/main.module.js',
       indent: '\t',
-      banner: 'var dvlpThree = (typeof dvlpThree !== \'undefined\' && dvlpThree) || (typeof dvlpThree$1 !== \'undefined\' && dvlpThree$1) || (typeof THREE !== \'undefined\' && THREE);',
-      external: ['dvlp-three', 'dvlpThree'],
-      globals: ['dvlp-three', 'dvlpThree']
+      banner: 'import * as dvlpThree from \'dvlp-three\';',
+      external: ['dvlp-three'],
     }
   ],
   plugins    : [
