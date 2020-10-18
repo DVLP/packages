@@ -1,4 +1,4 @@
-var dvlpThree = (typeof dvlpThree !== 'undefined' && dvlpThree) || (typeof dvlpThree$1 !== 'undefined' && dvlpThree$1) || (typeof THREE !== 'undefined' && THREE);
+import * as dvlpThree from 'dvlp-three';
 // BELOW FLAT ARRAYS MANAGER
 const FIELDS_OVERSIZE = 500;
 const OVERSIZE_CONTAINER_CAPACITY = 2000;
@@ -31,7 +31,6 @@ var simplify_worker = () => {
   let reattemptIntervalCount = 20;
   let currentReqId = -1;
   let previousDataArrayViews = null;
-  let modelSize = 0;
 
   self.onmessage = function(e) {
     var functionName = e.data.task;
@@ -76,7 +75,7 @@ var simplify_worker = () => {
       specialCasesIndex: data.specialCasesIndex,
       specialFaceCases: data.specialFaceCases,
       specialFaceCasesIndex: data.specialFaceCasesIndex,
-      modelSizeFactor: (1 / data.modelSize) * 10
+      modelSizeFactor: (1 / data.modelSize)
     };
     dataArrayViews.collapseQueue = new Uint32Array(150);
 
@@ -91,7 +90,6 @@ var simplify_worker = () => {
     reportWorkerId = workerIndex;
     reportTotalWorkers = totalWorkers;
     currentReqId = data.reqId;
-    modelSize = data.modelSize;
 
     let range = Math.floor(
       dataArrayViews.verticesView.length / 3 / totalWorkers
@@ -1424,7 +1422,7 @@ var simplify_worker = () => {
       try {
         collapse(nextVertexId, neighbourId, preserveTexture, dataArrayViews);
       } catch (e) {
-        console.error('not collapsed' + e.message);
+        console.warn('not collapsed' + e.message);
         // in case of an error add vertex to done but continue
         dataArrayViews.vertexWorkStatus[nextVertexId] = 2;
       }
@@ -2692,6 +2690,24 @@ function createNewBufferGeometry(
   for (var i = 0; i < faces.length / 3; i++) {
     if (faces[i * 3] === -1) continue;
     faceCount++;
+  }
+
+  // reindex atlasGroups
+  if (geometry.userData.atlasGroups) {
+    const atlasGroups = JSON.parse(JSON.stringify(geometry.userData.atlasGroups));
+    let totalSkipped = 0;
+    atlasGroups.forEach(group => {
+      let skippedInGroup = 0;
+      for (let i = group.start, l = group.start + group.count; i < l; i += 3) {
+        if (faces[i] === -1) {
+          skippedInGroup += 3;
+        }
+      }
+      group.start = group.start - totalSkipped;
+      group.count = group.count - skippedInGroup;
+      totalSkipped += skippedInGroup;
+    });
+    geo.userData.atlasGroups = atlasGroups;
   }
 
   // console.log('Faces reduction from : ', faces.length / 3, 'to', faceCount);
