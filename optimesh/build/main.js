@@ -78,7 +78,7 @@ var optimesh = (function (exports) {
 	      specialCasesIndex: data.specialCasesIndex,
 	      specialFaceCases: data.specialFaceCases,
 	      specialFaceCasesIndex: data.specialFaceCasesIndex,
-	      modelSizeFactor: (1 / data.modelSize)
+	      modelSizeFactor: (1 / data.modelSize) * 10
 	    };
 	    dataArrayViews.collapseQueue = new Uint32Array(150);
 
