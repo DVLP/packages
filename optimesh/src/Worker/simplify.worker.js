@@ -1522,7 +1522,7 @@ export default () => {
       } catch (e) {
         console.warn('not collapsed' + e.message);
         // in case of an error add vertex to done but continue
-        dataArrayViews.vertexWorkStatus[nextVertexId] = 2
+        dataArrayViews.vertexWorkStatus[nextVertexId] = 3
       }
       // WARNING: don't reset skip if any kind of failure happens above
       skip = 0;
@@ -2047,7 +2047,7 @@ export default () => {
 
   function getIndexInOversized(containerIndex, parentIndex) {
     if (containerIndex[parentIndex] === undefined) {
-      throw new Error('Oversize container index is too small');
+      throw new Error('Oversize container index is too small ' + parentIndex);
     }
     return containerIndex[parentIndex];
   }

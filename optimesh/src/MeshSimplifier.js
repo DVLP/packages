@@ -27,7 +27,8 @@ const FIELDS_NO = 30;
 const FIELDS_OVERSIZE = 500;
 // if this value is below 10k workers start overlapping each other's work(neighbours can be outside worker's range, there's a locking mechanism for this but not perfect)
 const MIN_VERTICES_PER_WORKER = 50000;
-const OVERSIZE_CONTAINER_CAPACITY = 2000;
+// the bigger MIN_VERTICES_PER_WORKER is the bigger OVERSIZE_CONTAINER_CAPACITY should be, 10% size?
+const OVERSIZE_CONTAINER_CAPACITY = 5000;
 let reqId = 0;
 let totalAvailableWorkers = navigator.hardwareConcurrency;
 // if SAB is not available use only 1 worker per object to fully contain dataArrays that will be only available after using transferable objects
@@ -237,13 +238,13 @@ function createDataArrays(verexCount, faceCount, workersAmount) {
     new SAB(FIELDS_OVERSIZE * OVERSIZE_CONTAINER_CAPACITY * 4)
   );
   emptyOversizedContainer(specialCases);
-  const specialCasesIndex = new Int32Array(new SAB(verexCount * 4));
+  const specialCasesIndex = new Int32Array(new SAB(verexCount * 3 * 4));
   emptyOversizedContainerIndex(specialCasesIndex);
   const specialFaceCases = new Int32Array(
     new SAB(FIELDS_OVERSIZE * OVERSIZE_CONTAINER_CAPACITY * 4)
   );
   emptyOversizedContainer(specialFaceCases);
-  const specialFaceCasesIndex = new Int32Array(new SAB(faceCount * 4));
+  const specialFaceCasesIndex = new Int32Array(new SAB(faceCount * 3 * 4));
   emptyOversizedContainerIndex(specialFaceCasesIndex);
 
   reusingDataArrays = {
