@@ -93,6 +93,7 @@ function setupGUI(webglContainer, models) {
     this.state = Object.keys(models)[0];
     this.rotationSpeed = 0.01;
     this.optimizationLevel = 0.3;
+    this.maximumCost = 5;
     this.optimizeModel = () => optimizeModel(controls);
     this.apply = () => apply();
     this.preserveTexture = true;
@@ -115,6 +116,7 @@ function setupGUI(webglContainer, models) {
 
   gui.add(controls, 'rotationSpeed', 0, 0.06);
   gui.add(controls, 'optimizationLevel', 0, 1);
+  gui.add(controls, 'maximumCost', 1, 20);
   gui.add(controls, 'preserveTexture');
   gui.add(controls, 'wireframe');
   gui.add(controls, 'optimizeModel');
@@ -189,6 +191,7 @@ function recursivelyOptimize(model, controls) {
     meshSimplifier(
       model.originalGeometry || model.geometry,
       controls.optimizationLevel,
+      controls.maximumCost,
       modelSize,
       controls.preserveTexture
     ).then(newGeo => {

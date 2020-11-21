@@ -35,7 +35,7 @@ var optimesh = (function (exports) {
 	  let currentReqId = -1;
 	  let previousDataArrayViews = null;
 
-	  self.onmessage = function(e) {
+	  self.onmessage = function (e) {
 	    var functionName = e.data.task;
 	    if (functionName && self[functionName]) {
 	      self[functionName](
@@ -78,7 +78,8 @@ var optimesh = (function (exports) {
 	      specialCasesIndex: data.specialCasesIndex,
 	      specialFaceCases: data.specialFaceCases,
 	      specialFaceCasesIndex: data.specialFaceCasesIndex,
-	      modelSizeFactor: (1 / data.modelSize) * 10
+	      modelSizeFactor: (1 / data.modelSize) * 10,
+	      maximumCost: data.maximumCost || 10
 	    };
 	    dataArrayViews.collapseQueue = new Uint32Array(150);
 
@@ -292,12 +293,14 @@ var optimesh = (function (exports) {
 	        dataArrayViews[el].buffer && acc.push(dataArrayViews[el].buffer);
 	        return acc;
 	      }, []);
-	      self.postMessage({ task: 'edgesCostsDone', reqId, dataArrays: dataArrayViews }, ifNoSABUseTransferable);
+	      self.postMessage(
+	        { task: 'edgesCostsDone', reqId, dataArrays: dataArrayViews },
+	        ifNoSABUseTransferable
+	      );
 	    } else {
 	      freeDataArrayRefs();
 	      self.postMessage({ task: 'edgesCostsDone', reqId });
 	    }
-
 	  }
 
 	  function bufferArrayPushIfUnique(array, object) {
@@ -897,6 +900,12 @@ var optimesh = (function (exports) {
 	    );
 	    var edgelengthSquared = posA.distanceToSquared(posB);
 
+	    const edgeCost = Math.sqrt(edgelengthSquared) * dataArrayViews.modelSizeFactor;
+	    // edge length cost 0-10, if more than 2(20% of object size stop)
+	    if (edgeCost > 2) {
+	      return 10000
+	    }
+
 	    var curvature = 0;
 
 	    sideFaces[0] = -1;
@@ -908,8 +917,8 @@ var optimesh = (function (exports) {
 	      il = vertexFaceCount;
 
 	    // FIND if we're pulling an edge
-	      // end of collapsed edge should not end with 
-	      // edges around moved vertex must have 2 triangles on both sides
+	    // end of collapsed edge should not end with
+	    // edges around moved vertex must have 2 triangles on both sides
 
 	    // find the 'sides' triangles that are on the edge uv
 	    for (i = 0; i < il; i++) {
@@ -950,6 +959,11 @@ var optimesh = (function (exports) {
 	      }
 	      curvature = Math.max(curvature, minCurvature);
 	    }
+
+	    // maximum allowed curvature to be removed
+	    if (curvature > 0.5) {
+	      return 1000
+	    }
 	    if (sideFaces[0] === -1 || sideFaces[1] === -1) {
 	      // we add some arbitrary cost for borders,
 	      //borders += 1;
@@ -962,8 +976,13 @@ var optimesh = (function (exports) {
 	    //   edgelengthSquared * curvature * curvature +
 	    //   borders * borders +
 	    //   costUV * costUV;
+
+	    if (costUV > 3) {
+	      return 1000
+	    }
+
 	    var amt =
-	      Math.sqrt(edgelengthSquared) * dataArrayViews.modelSizeFactor + // compute bounding box from vertices first and use max size to affect edge length param
+	      edgeCost + // compute bounding box from vertices first and use max size to affect edge length param
 	      curvature * 10 + // float 0 - 10 what if curvature is less than 1 ? it will cause
 	      // borders * borders +
 	      (costUV + costUV); // integer - always > 1 // what if cost uv is less than 1 ? it will cause
@@ -1457,14 +1476,14 @@ var optimesh = (function (exports) {
 	    }
 
 	    for (var i = from + skip; i < to; i++) {
-	      if (leastV === false) {
-	        if (dataArrayViews.costStore[i] < 500) {
+	      if (dataArrayViews.costStore[i] < dataArrayViews.maximumCost) {
+	        if (leastV === false) {
+	          leastV = i;
+	        } else if (
+	          dataArrayViews.costStore[i] < dataArrayViews.costStore[leastV]
+	        ) {
 	          leastV = i;
 	        }
-	      } else if (
-	        dataArrayViews.costStore[i] < dataArrayViews.costStore[leastV]
-	      ) {
-	        leastV = i;
 	      }
 	    }
 	    return leastV;
@@ -1475,14 +1494,14 @@ var optimesh = (function (exports) {
 	    this.y = y || 0;
 	  }
 
-	  Vector2.prototype.copy = function(v) {
+	  Vector2.prototype.copy = function (v) {
 	    this.x = v.x;
 	    this.y = v.y;
 
 	    return this;
 	  };
 
-	  Vector2.prototype.fromArray = function(array, offset) {
+	  Vector2.prototype.fromArray = function (array, offset) {
 	    if (offset === undefined) offset = 0;
 
 	    this.x = array[offset];
@@ -1497,7 +1516,7 @@ var optimesh = (function (exports) {
 	    this.z = z || 0;
 	  }
 
-	  Vector3.prototype.set = function(x, y, z) {
+	  Vector3.prototype.set = function (x, y, z) {
 	    this.x = x;
 	    this.y = y;
 	    this.z = z;
@@ -1507,7 +1526,7 @@ var optimesh = (function (exports) {
 
 	  Vector3.prototype.isVector3 = true;
 
-	  Vector3.prototype.subVectors = function(a, b) {
+	  Vector3.prototype.subVectors = function (a, b) {
 	    this.x = a.x - b.x;
 	    this.y = a.y - b.y;
 	    this.z = a.z - b.z;
@@ -1515,7 +1534,7 @@ var optimesh = (function (exports) {
 	    return this;
 	  };
 
-	  Vector3.prototype.cross = function(v, w) {
+	  Vector3.prototype.cross = function (v, w) {
 	    if (w !== undefined) {
 	      console.warn(
 	        'THREE.Vector3: .cross() now only accepts one argument. Use .crossVectors( a, b ) instead.'
@@ -1526,7 +1545,7 @@ var optimesh = (function (exports) {
 	    return this.crossVectors(this, v);
 	  };
 
-	  Vector3.prototype.crossVectors = function(a, b) {
+	  Vector3.prototype.crossVectors = function (a, b) {
 	    var ax = a.x,
 	      ay = a.y,
 	      az = a.z;
@@ -1549,7 +1568,7 @@ var optimesh = (function (exports) {
 	    return this;
 	  };
 
-	  Vector3.prototype.multiplyScalar = function(scalar) {
+	  Vector3.prototype.multiplyScalar = function (scalar) {
 	    this.x *= scalar;
 	    this.y *= scalar;
 	    this.z *= scalar;
@@ -1557,19 +1576,19 @@ var optimesh = (function (exports) {
 	    return this;
 	  };
 
-	  Vector3.prototype.divideScalar = function(scalar) {
+	  Vector3.prototype.divideScalar = function (scalar) {
 	    return this.multiplyScalar(1 / scalar);
 	  };
 
-	  Vector3.prototype.length = function() {
+	  Vector3.prototype.length = function () {
 	    return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
 	  };
 
-	  Vector3.prototype.normalize = function() {
+	  Vector3.prototype.normalize = function () {
 	    return this.divideScalar(this.length() || 1);
 	  };
 
-	  Vector3.prototype.copy = function(v) {
+	  Vector3.prototype.copy = function (v) {
 	    this.x = v.x;
 	    this.y = v.y;
 	    this.z = v.z;
@@ -1577,7 +1596,7 @@ var optimesh = (function (exports) {
 	    return this;
 	  };
 
-	  Vector3.prototype.distanceToSquared = function(v) {
+	  Vector3.prototype.distanceToSquared = function (v) {
 	    var dx = this.x - v.x,
 	      dy = this.y - v.y,
 	      dz = this.z - v.z;
@@ -1585,15 +1604,15 @@ var optimesh = (function (exports) {
 	    return dx * dx + dy * dy + dz * dz;
 	  };
 
-	  Vector3.prototype.dot = function(v) {
+	  Vector3.prototype.dot = function (v) {
 	    return this.x * v.x + this.y * v.y + this.z * v.z;
 	  };
 
-	  Vector3.prototype.clone = function() {
+	  Vector3.prototype.clone = function () {
 	    return new this.constructor(this.x, this.y, this.z);
 	  };
 
-	  Vector3.prototype.sub = function(v, w) {
+	  Vector3.prototype.sub = function (v, w) {
 	    if (w !== undefined) {
 	      console.warn(
 	        'THREE.Vector3: .sub() now only accepts one argument. Use .subVectors( a, b ) instead.'
@@ -1608,7 +1627,7 @@ var optimesh = (function (exports) {
 	    return this;
 	  };
 
-	  Vector3.prototype.add = function(v, w) {
+	  Vector3.prototype.add = function (v, w) {
 	    if (w !== undefined) {
 	      console.warn(
 	        'THREE.Vector3: .add() now only accepts one argument. Use .addVectors( a, b ) instead.'
@@ -1623,7 +1642,7 @@ var optimesh = (function (exports) {
 	    return this;
 	  };
 
-	  Vector3.prototype.fromArray = function(array, offset) {
+	  Vector3.prototype.fromArray = function (array, offset) {
 	    if (offset === undefined) offset = 0;
 
 	    this.x = array[offset];
@@ -2073,7 +2092,7 @@ var optimesh = (function (exports) {
 	// if this value is below 10k workers start overlapping each other's work(neighbours can be outside worker's range, there's a locking mechanism for this but not perfect)
 	const MIN_VERTICES_PER_WORKER = 50000;
 	// the bigger MIN_VERTICES_PER_WORKER is the bigger OVERSIZE_CONTAINER_CAPACITY should be, 10% size?
-	const OVERSIZE_CONTAINER_CAPACITY$1 = 5000;
+	const OVERSIZE_CONTAINER_CAPACITY$1 = 2000;
 	let reqId = 0;
 	let totalAvailableWorkers = navigator.hardwareConcurrency;
 	// if SAB is not available use only 1 worker per object to fully contain dataArrays that will be only available after using transferable objects
@@ -2115,6 +2134,7 @@ var optimesh = (function (exports) {
 	function meshSimplifier(
 	  geometry,
 	  percentage,
+	  maximumCost = 5,
 	  modelSize,
 	  preserveTexture = true,
 	  attempt = 0,
@@ -2156,6 +2176,7 @@ var optimesh = (function (exports) {
 	        workers,
 	        geometry,
 	        percentage,
+	        maximumCost,
 	        modelSize,
 	        preserveTexture,
 	        geometry
@@ -2257,13 +2278,13 @@ var optimesh = (function (exports) {
 	    new SAB(FIELDS_OVERSIZE$1 * OVERSIZE_CONTAINER_CAPACITY$1 * 4)
 	  );
 	  emptyOversizedContainer(specialCases);
-	  const specialCasesIndex = new Int32Array(new SAB(verexCount * 3 * 4));
+	  const specialCasesIndex = new Int32Array(new SAB(verexCount * 4));
 	  emptyOversizedContainerIndex(specialCasesIndex);
 	  const specialFaceCases = new Int32Array(
 	    new SAB(FIELDS_OVERSIZE$1 * OVERSIZE_CONTAINER_CAPACITY$1 * 4)
 	  );
 	  emptyOversizedContainer(specialFaceCases);
-	  const specialFaceCasesIndex = new Int32Array(new SAB(faceCount * 3 * 4));
+	  const specialFaceCasesIndex = new Int32Array(new SAB(faceCount * 4));
 	  emptyOversizedContainerIndex(specialFaceCasesIndex);
 
 	  reusingDataArrays = {
@@ -2502,6 +2523,7 @@ var optimesh = (function (exports) {
 	  workers,
 	  bGeometry,
 	  percentage,
+	  maximumCost,
 	  modelSize,
 	  preserveTexture,
 	  geometry
@@ -2577,6 +2599,7 @@ var optimesh = (function (exports) {
 
 	        // no shared buffers below but structural copying
 	        percentage,
+	        maximumCost,
 	        preserveTexture,
 	        FIELDS_NO,
 	        FIELDS_OVERSIZE: FIELDS_OVERSIZE$1,
@@ -5543,6 +5566,7 @@ var optimesh = (function (exports) {
 	    this.state = Object.keys(models)[0];
 	    this.rotationSpeed = 0.01;
 	    this.optimizationLevel = 0.3;
+	    this.maximumCost = 5;
 	    this.optimizeModel = () => optimizeModel(controls);
 	    this.apply = () => apply();
 	    this.preserveTexture = true;
@@ -5565,6 +5589,7 @@ var optimesh = (function (exports) {
 
 	  gui.add(controls, 'rotationSpeed', 0, 0.06);
 	  gui.add(controls, 'optimizationLevel', 0, 1);
+	  gui.add(controls, 'maximumCost', 1, 20);
 	  gui.add(controls, 'preserveTexture');
 	  gui.add(controls, 'wireframe');
 	  gui.add(controls, 'optimizeModel');
@@ -5639,6 +5664,7 @@ var optimesh = (function (exports) {
 	    meshSimplifier(
 	      model.originalGeometry || model.geometry,
 	      controls.optimizationLevel,
+	      controls.maximumCost,
 	      modelSize,
 	      controls.preserveTexture
 	    ).then(newGeo => {

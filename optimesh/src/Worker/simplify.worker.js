@@ -9,7 +9,7 @@ export default () => {
   let currentReqId = -1;
   let previousDataArrayViews = null;
 
-  self.onmessage = function(e) {
+  self.onmessage = function (e) {
     var functionName = e.data.task;
     if (functionName && self[functionName]) {
       self[functionName](
@@ -26,7 +26,7 @@ export default () => {
   };
 
   function buildCallback(functionName, reqId, time) {
-    return function(data) {
+    return function (data) {
       var message = {
         functionName,
         reqId,
@@ -64,7 +64,8 @@ export default () => {
       specialCasesIndex: data.specialCasesIndex,
       specialFaceCases: data.specialFaceCases,
       specialFaceCasesIndex: data.specialFaceCasesIndex,
-      modelSizeFactor: (1 / data.modelSize) * 10
+      modelSizeFactor: (1 / data.modelSize) * 10,
+      maximumCost: data.maximumCost || 10
     };
     dataArrayViews.collapseQueue = new Uint32Array(150);
 
@@ -278,12 +279,14 @@ export default () => {
         dataArrayViews[el].buffer && acc.push(dataArrayViews[el].buffer);
         return acc;
       }, []);
-      self.postMessage({ task: 'edgesCostsDone', reqId, dataArrays: dataArrayViews }, ifNoSABUseTransferable);
+      self.postMessage(
+        { task: 'edgesCostsDone', reqId, dataArrays: dataArrayViews },
+        ifNoSABUseTransferable
+      );
     } else {
       freeDataArrayRefs();
       self.postMessage({ task: 'edgesCostsDone', reqId });
     }
-
   }
 
   /*
@@ -906,6 +909,12 @@ export default () => {
     );
     var edgelengthSquared = posA.distanceToSquared(posB);
 
+    const edgeCost = Math.sqrt(edgelengthSquared) * dataArrayViews.modelSizeFactor
+    // edge length cost 0-10, if more than 2(20% of object size stop)
+    if (edgeCost > 2) {
+      return 10000
+    }
+
     var curvature = 0;
 
     sideFaces[0] = -1;
@@ -917,8 +926,8 @@ export default () => {
       il = vertexFaceCount;
 
     // FIND if we're pulling an edge
-      // end of collapsed edge should not end with 
-      // edges around moved vertex must have 2 triangles on both sides
+    // end of collapsed edge should not end with
+    // edges around moved vertex must have 2 triangles on both sides
 
     // find the 'sides' triangles that are on the edge uv
     for (i = 0; i < il; i++) {
@@ -960,6 +969,11 @@ export default () => {
       curvature = Math.max(curvature, minCurvature);
     }
 
+    // maximum allowed curvature to be removed
+    if (curvature > 0.5) {
+      return 1000
+    }
+
     // crude approach in attempt to preserve borders
     // though it seems not to be totally correct
     var borders = 0;
@@ -975,8 +989,13 @@ export default () => {
     //   edgelengthSquared * curvature * curvature +
     //   borders * borders +
     //   costUV * costUV;
+
+    if (costUV > 3) {
+      return 1000
+    }
+
     var amt =
-      Math.sqrt(edgelengthSquared) * dataArrayViews.modelSizeFactor + // compute bounding box from vertices first and use max size to affect edge length param
+      edgeCost + // compute bounding box from vertices first and use max size to affect edge length param
       curvature * 10 + // float 0 - 10 what if curvature is less than 1 ? it will cause
       // borders * borders +
       (costUV + costUV); // integer - always > 1 // what if cost uv is less than 1 ? it will cause
@@ -1522,7 +1541,7 @@ export default () => {
       } catch (e) {
         console.warn('not collapsed' + e.message);
         // in case of an error add vertex to done but continue
-        dataArrayViews.vertexWorkStatus[nextVertexId] = 3
+        dataArrayViews.vertexWorkStatus[nextVertexId] = 3;
       }
       // WARNING: don't reset skip if any kind of failure happens above
       skip = 0;
@@ -1553,14 +1572,14 @@ export default () => {
     }
 
     for (var i = from + skip; i < to; i++) {
-      if (leastV === false) {
-        if (dataArrayViews.costStore[i] < 500) {
+      if (dataArrayViews.costStore[i] < dataArrayViews.maximumCost) {
+        if (leastV === false) {
+          leastV = i;
+        } else if (
+          dataArrayViews.costStore[i] < dataArrayViews.costStore[leastV]
+        ) {
           leastV = i;
         }
-      } else if (
-        dataArrayViews.costStore[i] < dataArrayViews.costStore[leastV]
-      ) {
-        leastV = i;
       }
     }
     return leastV;
@@ -1571,14 +1590,14 @@ export default () => {
     this.y = y || 0;
   }
 
-  Vector2.prototype.copy = function(v) {
+  Vector2.prototype.copy = function (v) {
     this.x = v.x;
     this.y = v.y;
 
     return this;
   };
 
-  Vector2.prototype.fromArray = function(array, offset) {
+  Vector2.prototype.fromArray = function (array, offset) {
     if (offset === undefined) offset = 0;
 
     this.x = array[offset];
@@ -1593,7 +1612,7 @@ export default () => {
     this.z = z || 0;
   }
 
-  Vector3.prototype.set = function(x, y, z) {
+  Vector3.prototype.set = function (x, y, z) {
     this.x = x;
     this.y = y;
     this.z = z;
@@ -1603,7 +1622,7 @@ export default () => {
 
   Vector3.prototype.isVector3 = true;
 
-  Vector3.prototype.subVectors = function(a, b) {
+  Vector3.prototype.subVectors = function (a, b) {
     this.x = a.x - b.x;
     this.y = a.y - b.y;
     this.z = a.z - b.z;
@@ -1611,7 +1630,7 @@ export default () => {
     return this;
   };
 
-  Vector3.prototype.cross = function(v, w) {
+  Vector3.prototype.cross = function (v, w) {
     if (w !== undefined) {
       console.warn(
         'THREE.Vector3: .cross() now only accepts one argument. Use .crossVectors( a, b ) instead.'
@@ -1622,7 +1641,7 @@ export default () => {
     return this.crossVectors(this, v);
   };
 
-  Vector3.prototype.crossVectors = function(a, b) {
+  Vector3.prototype.crossVectors = function (a, b) {
     var ax = a.x,
       ay = a.y,
       az = a.z;
@@ -1645,7 +1664,7 @@ export default () => {
     return this;
   };
 
-  Vector3.prototype.multiplyScalar = function(scalar) {
+  Vector3.prototype.multiplyScalar = function (scalar) {
     this.x *= scalar;
     this.y *= scalar;
     this.z *= scalar;
@@ -1653,19 +1672,19 @@ export default () => {
     return this;
   };
 
-  Vector3.prototype.divideScalar = function(scalar) {
+  Vector3.prototype.divideScalar = function (scalar) {
     return this.multiplyScalar(1 / scalar);
   };
 
-  Vector3.prototype.length = function() {
+  Vector3.prototype.length = function () {
     return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
   };
 
-  Vector3.prototype.normalize = function() {
+  Vector3.prototype.normalize = function () {
     return this.divideScalar(this.length() || 1);
   };
 
-  Vector3.prototype.copy = function(v) {
+  Vector3.prototype.copy = function (v) {
     this.x = v.x;
     this.y = v.y;
     this.z = v.z;
@@ -1673,7 +1692,7 @@ export default () => {
     return this;
   };
 
-  Vector3.prototype.distanceToSquared = function(v) {
+  Vector3.prototype.distanceToSquared = function (v) {
     var dx = this.x - v.x,
       dy = this.y - v.y,
       dz = this.z - v.z;
@@ -1681,15 +1700,15 @@ export default () => {
     return dx * dx + dy * dy + dz * dz;
   };
 
-  Vector3.prototype.dot = function(v) {
+  Vector3.prototype.dot = function (v) {
     return this.x * v.x + this.y * v.y + this.z * v.z;
   };
 
-  Vector3.prototype.clone = function() {
+  Vector3.prototype.clone = function () {
     return new this.constructor(this.x, this.y, this.z);
   };
 
-  Vector3.prototype.sub = function(v, w) {
+  Vector3.prototype.sub = function (v, w) {
     if (w !== undefined) {
       console.warn(
         'THREE.Vector3: .sub() now only accepts one argument. Use .subVectors( a, b ) instead.'
@@ -1704,7 +1723,7 @@ export default () => {
     return this;
   };
 
-  Vector3.prototype.add = function(v, w) {
+  Vector3.prototype.add = function (v, w) {
     if (w !== undefined) {
       console.warn(
         'THREE.Vector3: .add() now only accepts one argument. Use .addVectors( a, b ) instead.'
@@ -1719,7 +1738,7 @@ export default () => {
     return this;
   };
 
-  Vector3.prototype.fromArray = function(array, offset) {
+  Vector3.prototype.fromArray = function (array, offset) {
     if (offset === undefined) offset = 0;
 
     this.x = array[offset];
