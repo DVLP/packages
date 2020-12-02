@@ -26,11 +26,11 @@ export class WebWorker {
 const FIELDS_NO = 30;
 const FIELDS_OVERSIZE = 500;
 // if this value is below 10k workers start overlapping each other's work(neighbours can be outside worker's range, there's a locking mechanism for this but not perfect)
-const MIN_VERTICES_PER_WORKER = 50000;
+const MIN_VERTICES_PER_WORKER = 20000;
 // the bigger MIN_VERTICES_PER_WORKER is the bigger OVERSIZE_CONTAINER_CAPACITY should be, 10% size?
 const OVERSIZE_CONTAINER_CAPACITY = 2000;
 let reqId = 0;
-let totalAvailableWorkers = navigator.hardwareConcurrency;
+let totalAvailableWorkers = Math.min(5, navigator.hardwareConcurrency);
 // if SAB is not available use only 1 worker per object to fully contain dataArrays that will be only available after using transferable objects
 const MAX_WORKERS_PER_OBJECT = typeof SharedArrayBuffer === 'undefined' ? 1 : navigator.hardwareConcurrency;
 const DISCARD_BELOW_VERTEX_COUNT = 400;
@@ -465,12 +465,12 @@ function requestFreeWorkers(workers, verticesLength, onWorkersReady) {
   // limit to MAX_WORKERS_PER_OBJECT
   workersAmount = Math.min(MAX_WORKERS_PER_OBJECT, workersAmount);
 
-  // console.log(
-  //   'requesting workers',
-  //   workersAmount,
-  //   workers.length,
-  //   workers.filter(w => w.free).length
-  // );
+  console.log(
+    'requesting workers',
+    workersAmount,
+    workers.length,
+    workers.filter(w => w.free).length
+  );
 
   // wait for at least 2
   if (workersAmount < 1) {
@@ -859,7 +859,7 @@ function createNewBufferGeometry(
   }
 
   console.log(
-    'Result mesh sizes:',
+    'Result mesh ' + geometry.name + ' sizes:',
     'positions',
     posLength,
     'normals',

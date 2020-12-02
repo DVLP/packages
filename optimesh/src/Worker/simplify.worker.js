@@ -9,6 +9,27 @@ export default () => {
   let currentReqId = -1;
   let previousDataArrayViews = null;
 
+  console.limited = (msg) => {
+    if (!console.counters[msg]) {
+      console.counters[msg] = 0;
+    }
+    console.counters[msg]++;
+
+    if (console.counters[msg] < 10) {
+      console.log(msg);
+    } else if (console.counters[msg] === 100) {
+      console.log(msg, 'x100');
+    } else if (console.counters[msg] === 1000) {
+      console.log(msg, 'x1000');
+    } else if (console.counters[msg] === 10000) {
+      console.log(msg, 'x10000');
+    } else if (console.counters[msg] === 100000) {
+      console.log(msg, 'x100000');
+    } else if (console.counters[msg] === 1000000) {
+      console.log(msg, 'x1000000');
+    }
+  };
+
   self.onmessage = function (e) {
     var functionName = e.data.task;
     if (functionName && self[functionName]) {
@@ -40,6 +61,7 @@ export default () => {
   self['load'] = load;
   function load(data) {
     freeDataArrayRefs();
+    console.counters = {};
 
     const dataArrayViews = {
       costStore: data.costStore,
@@ -203,7 +225,7 @@ export default () => {
     try {
       computeLeastCosts(dataArrayViews, start, end);
     } catch (e) {
-      exitWithError(reqId, e.message);
+      exitWithError(reqId, e.message || e);
       return;
     }
 
@@ -270,7 +292,7 @@ export default () => {
         end
       );
     } catch (e) {
-      return exitWithError(reqId, e.message);
+      return exitWithError(reqId, e.message || e);
     }
 
     let ifNoSABUseTransferable = undefined;
@@ -321,6 +343,15 @@ export default () => {
 
     array[0] += 2;
     // if (array.indexOf(object) === -1) array.push(object);
+  }
+
+  function bufferArrayIncludes(array, el) {
+    for (var i = 1, il = array[0]; i <= il; i++) {
+      if (array[i] === el) {
+        return true;
+      }
+    }
+    return false;
   }
 
   function buildVertexNeighboursIndex(
@@ -861,13 +892,13 @@ export default () => {
   const posA = new Vector3();
   const posB = new Vector3();
   function tryComputeEdgeCollapseCost(uId, vId, dataArrayViews, attempt = 0) {
-    if (
-      dataArrayViews.vertexWorkStatus[uId] > 0 ||
-      dataArrayViews.vertexWorkStatus[vId] > 0
-    ) {
-      // console.log('Busy now and cant recalculate');
-      // return tryComputeEdgeCollapseCost(uId, vId, dataArrayViews);
-    }
+    // if (
+    //   dataArrayViews.vertexWorkStatus[uId] > 0 ||
+    //   dataArrayViews.vertexWorkStatus[vId] > 0
+    // ) {
+    // console.log('Busy now and cant recalculate');
+    // return tryComputeEdgeCollapseCost(uId, vId, dataArrayViews);
+    // }
     try {
       return computeEdgeCollapseCost(uId, vId, dataArrayViews);
     } catch (e) {
@@ -909,10 +940,12 @@ export default () => {
     );
     var edgelengthSquared = posA.distanceToSquared(posB);
 
-    const edgeCost = Math.sqrt(edgelengthSquared) * dataArrayViews.modelSizeFactor
+    const edgeCost =
+      Math.sqrt(edgelengthSquared) * dataArrayViews.modelSizeFactor;
     // edge length cost 0-10, if more than 2(20% of object size stop)
     if (edgeCost > 2) {
-      return 10000
+      console.limited('Absolute limit of edge cost reached');
+      return 10000;
     }
 
     var curvature = 0;
@@ -932,7 +965,6 @@ export default () => {
     // find the 'sides' triangles that are on the edge uv
     for (i = 0; i < il; i++) {
       var faceId = getFaceIdByVertexAndIndex(uId, i, dataArrayViews);
-
       if (faceIdHasVertexId(faceId, vId, dataArrayViews.facesView)) {
         if (sideFaces[0] === -1) {
           sideFaces[0] = faceId;
@@ -969,9 +1001,9 @@ export default () => {
       curvature = Math.max(curvature, minCurvature);
     }
 
-    // maximum allowed curvature to be removed
-    if (curvature > 0.5) {
-      return 1000
+    // maximum allowed curvature to be culled
+    if (curvature > 1) {
+      return 1000;
     }
 
     // crude approach in attempt to preserve borders
@@ -984,15 +1016,13 @@ export default () => {
     }
 
     var costUV = computeUVsCost(uId, vId, dataArrayViews);
-
+    if (costUV > 3) {
+      return 1000;
+    }
     // var amt =
     //   edgelengthSquared * curvature * curvature +
     //   borders * borders +
     //   costUV * costUV;
-
-    if (costUV > 3) {
-      return 1000
-    }
 
     var amt =
       edgeCost + // compute bounding box from vertices first and use max size to affect edge length param
@@ -1159,18 +1189,25 @@ export default () => {
   var normal2Temp = new Float32Array(3);
   var normal3Temp = new Float32Array(3);
   var tmpVertices = new Uint32Array(500);
+  var skipVertices = new Uint32Array(1000);
   var neighhbourId = 0;
   function collapse(uId, vId, preserveTexture, dataArrayViews) {
     // indicating that work is in progress on this vertex and neighbour (with which it creates about to be collapsed edge)
     // the neighbour might be in another worker's range or uId might be a neighbour of a vertex in another worker's range
+    if (dataArrayViews.vertexWorkStatus[uId] !== 0) {
+      throw 'Vertex uId availability status changed unexpectedly';
+    }
     dataArrayViews.vertexWorkStatus[uId] = 1;
     if (vId !== null) {
+      if (dataArrayViews.vertexWorkStatus[vId] !== 0) {
+        throw 'Vertex vId availability status changed unexpectedly';
+      }
       dataArrayViews.vertexWorkStatus[vId] = 1;
     }
     if (vId === null) {
       // u is a vertex all by itself so just delete it..
       removeVertex(uId, dataArrayViews);
-      dataArrayViews.vertexWorkStatus[uId] = 0;
+      dataArrayViews.vertexWorkStatus[uId] = 3;
       return true;
     }
 
@@ -1181,8 +1218,21 @@ export default () => {
     var i;
     tmpVertices[0] = 0;
 
+    // find neighbours plus add temporary lock "2" on them
     for (i = 0; i < neighboursCountU; i++) {
       neighhbourId = getVertexNeighbourByIndex(uId, i, dataArrayViews);
+      // skip currently processed neighbour
+      if (vId === neighhbourId) continue;
+
+      if (dataArrayViews.vertexWorkStatus[neighhbourId] === 1) {
+        throw 'Neightbour is currently being worked on';
+      }
+      if (dataArrayViews.vertexWorkStatus[neighhbourId] === 2) {
+        console.log('Works happening near this vertex, thats allowed');
+      }
+      if (dataArrayViews.vertexWorkStatus[neighhbourId] === 3) {
+        throw 'Neightbour has been removed and should not be in neighbours';
+      }
       dataArrayViews.vertexWorkStatus[neighhbourId] = 2;
       bufferArrayPushIfUnique(tmpVertices, neighhbourId);
     }
@@ -1193,9 +1243,6 @@ export default () => {
     //   dataArrayViews.vertexWorkStatus[neighhbourId] = 2;
     //   bufferArrayPushIfUnique(tmpVertices, neighhbourId);
     // }
-
-    let UVx = 0;
-    let UVy = 0;
 
     let facesCount = dataArrayViews.vertexFacesView[uId * FIELDS_NO];
 
@@ -1317,10 +1364,10 @@ export default () => {
           3
         );
 
-        for (var j = 0; j < 4; j++) {
-          // setOnAttribute(dataArrayViews.skinIndex, faceId, vertIndexOnFace, j, moveToSkinIndex[j], 4);
-          // setOnAttribute(dataArrayViews.skinWeight, faceId, vertIndexOnFace, j, moveToSkinWeight[j], 4);
-        }
+        // for (var j = 0; j < 4; j++) {
+        // setOnAttribute(dataArrayViews.skinIndex, faceId, vertIndexOnFace, j, moveToSkinIndex[j], 4);
+        // setOnAttribute(dataArrayViews.skinWeight, faceId, vertIndexOnFace, j, moveToSkinWeight[j], 4);
+        // }
       }
     }
 
@@ -1344,16 +1391,26 @@ export default () => {
     removeVertex(uId, dataArrayViews);
     // recompute the edge collapse costs in neighborhood
     for (var i = 1, il = tmpVertices[0]; i <= il; i++) {
-      // uncomment when ready
       computeEdgeCostAtVertex(tmpVertices[i], dataArrayViews);
+      // unlock temporarily locked neighbours
       if (dataArrayViews.vertexWorkStatus[tmpVertices[i]] === 2) {
         dataArrayViews.vertexWorkStatus[tmpVertices[i]] = 0;
+      } else {
+        console.limited(
+          'other status!',
+          dataArrayViews.vertexWorkStatus[tmpVertices[i]]
+        );
       }
     }
-    dataArrayViews.vertexWorkStatus[uId] = 0; // or maybe 2 to indicate that the work is done
-    if (vId !== null) {
-      dataArrayViews.vertexWorkStatus[vId] = 0; // vId remains so definitely 0
-    }
+    // vertexWorkStatus
+    // 0 - ready for processing
+    // 1 - busy
+    // 2 - temporary lock for neighbours
+    // 3 - removed
+
+    // uid has been removed
+    dataArrayViews.vertexWorkStatus[uId] = 3; // or maybe 2 to indicate that the work is done
+    dataArrayViews.vertexWorkStatus[vId] = 0; // vId remains so definitely 0
     return true;
   }
 
@@ -1467,7 +1524,6 @@ export default () => {
     var nextVertexId;
     var howManyToRemove = Math.round(originalLength * percentage);
     var z = howManyToRemove;
-    var skip = 0;
 
     // const costsOrdered = new Float32Array(vertices.length);
 
@@ -1492,15 +1548,22 @@ export default () => {
     // }
 
     let collapsedCount = 0;
+    skipVertices[0] = 0;
 
     while (z--) {
       // after skipping 30 start again
       // WATNING: this causes infonite loop
       // if (skip > 30) {
       //   console.log('something is seriously wrong');
-      //   skip = 0;
       // }
-      nextVertexId = minimumCostEdge(from, to, skip, dataArrayViews);
+      const prevNextVertex = nextVertexId;
+      nextVertexId = minimumCostEdge(from, to, skipVertices, dataArrayViews);
+      if (prevNextVertex === nextVertexId) {
+        console.warn(
+          `No new vertex with least cost found! ${prevNextVertex} ${nextVertexId}`
+        );
+        break;
+      }
       // nextVertexId = takeNextValue(dataArrayViews.collapseQueue);
       // if (nextVertexId === false) {
       //   buildFullIndex(
@@ -1512,14 +1575,21 @@ export default () => {
       //   nextVertexId = takeNextValue(dataArrayViews.collapseQueue);
       // }
       if (nextVertexId === false) {
-        console.log('Skipped all the way or cost only > 500');
+        console.log(
+          'skipVertices all the way or cost only > ',
+          dataArrayViews.maximumCost
+        );
         break;
       }
 
-      if (dataArrayViews.vertexWorkStatus[nextVertexId] > 0) {
-        // z++;
+      if (
+        dataArrayViews.vertexWorkStatus[nextVertexId] !== 0 &&
+        dataArrayViews.vertexWorkStatus[nextVertexId] !== 2
+      ) {
+        console.limited('skip next vertex');
         z++;
-        skip++;
+        bufferArrayPushIfUnique(skipVertices, nextVertexId);
+
         // console.log('work on this one going. skipping');
         continue;
       }
@@ -1530,21 +1600,24 @@ export default () => {
       //   continue;
       // }
       const neighbourId = dataArrayViews.neighbourCollapse[nextVertexId];
-      if (dataArrayViews.vertexWorkStatus[neighbourId] > 0) {
+      if (
+        dataArrayViews.vertexWorkStatus[neighbourId] !== 0 &&
+        dataArrayViews.vertexWorkStatus[neighbourId] !== 2
+      ) {
+        console.limited('skip next neighbour');
         z++;
-        skip++;
+        bufferArrayPushIfUnique(skipVertices, nextVertexId);
         // console.log('work on collapse neighbour going. skipping');
         continue;
       }
       try {
         collapse(nextVertexId, neighbourId, preserveTexture, dataArrayViews);
       } catch (e) {
-        console.warn('not collapsed' + e.message);
+        console.warn('not collapsed', e.message || e);
         // in case of an error add vertex to done but continue
         dataArrayViews.vertexWorkStatus[nextVertexId] = 3;
       }
       // WARNING: don't reset skip if any kind of failure happens above
-      skip = 0;
       collapsedCount++;
 
       // TEMO: this kind of fixes but breaks everything
@@ -1563,19 +1636,27 @@ export default () => {
     // );
   }
 
-  function minimumCostEdge(from, to, skip, dataArrayViews) {
+  function minimumCostEdge(from, to, skipVertices, dataArrayViews) {
     // // O(n * n) approach. TODO optimize this
     var leastV = false;
 
-    if (from + skip >= to - 1) {
+    if (from >= to - 1) {
       return false;
     }
 
-    for (var i = from + skip; i < to; i++) {
-      if (dataArrayViews.costStore[i] < dataArrayViews.maximumCost) {
+    for (var i = from; i < to; i++) {
+      if (
+        dataArrayViews.vertexWorkStatus[i] === 0 &&
+        dataArrayViews.costStore[i] < dataArrayViews.maximumCost &&
+        !bufferArrayIncludes(skipVertices, i)
+      ) {
         if (leastV === false) {
           leastV = i;
         } else if (
+          dataArrayViews.neighbourCollapse[i] !== -1 &&
+          dataArrayViews.vertexWorkStatus[
+            dataArrayViews.neighbourCollapse[i]
+          ] === 0 &&
           dataArrayViews.costStore[i] < dataArrayViews.costStore[leastV]
         ) {
           leastV = i;
