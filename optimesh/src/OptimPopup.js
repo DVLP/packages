@@ -1,5 +1,6 @@
 import { meshSimplifier, killWorkers, createWorkers } from './MeshSimplifier';
 import * as dat from 'dat.gui';
+import { skinnedMeshClone } from './skinnedMeshClone';
 
 // NO NEED TO IMPORT dvlpThree - it's added by rollup so it works with both THREE and dvlpThreee
 const { AmbientLight, Box3, Color, Group, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer, OrbitControls } = dvlpThree
@@ -254,7 +255,7 @@ function setupNewObject(scene, obj, controls, domElement) {
 
   modelGroup = new Group();
   modelGroup.add(obj);
-  modelOptimized = obj.clone();
+  modelOptimized = obj.isSkinnedMesh ? skinnedMeshClone(obj) : obj.clone();
   if (modelOptimized) {
     modelOptimized.originalGeometry =
       modelOptimized.geometry;

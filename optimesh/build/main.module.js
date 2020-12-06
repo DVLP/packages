@@ -5569,6 +5569,58 @@ function updateDisplays(controllerArray) {
 }
 var GUI$1 = GUI;
 
+// extracted from SkeletonUtils.clone
+function skinnedMeshClone( source ) {
+
+    var sourceLookup = new Map();
+    var cloneLookup = new Map();
+  
+    var clone = source.clone();
+  
+    parallelTraverse( source, clone, function ( sourceNode, clonedNode ) {
+  
+      sourceLookup.set( clonedNode, sourceNode );
+      cloneLookup.set( sourceNode, clonedNode );
+  
+    } );
+  
+    clone.traverse( function ( node ) {
+  
+      if ( ! node.isSkinnedMesh ) return;
+  
+      var clonedMesh = node;
+      var sourceMesh = sourceLookup.get( node );
+      var sourceBones = sourceMesh.skeleton.bones;
+  
+      clonedMesh.skeleton = sourceMesh.skeleton.clone();
+      clonedMesh.bindMatrix.copy( sourceMesh.bindMatrix );
+  
+      clonedMesh.skeleton.bones = sourceBones.map( function ( bone ) {
+  
+        // || bone.clone() is needed when bones are not in children
+        return cloneLookup.get( bone ) || bone.clone();
+  
+      } );
+  
+      clonedMesh.bind( clonedMesh.skeleton, clonedMesh.bindMatrix );
+  
+    } );
+  
+    return clone;
+  
+  }
+  function parallelTraverse( a, b, callback ) {
+  
+      callback( a, b );
+  
+      for ( var i = 0; i < a.children.length; i ++ ) {
+  
+          parallelTraverse( a.children[ i ], b.children[ i ], callback );
+  
+      }
+  
+  }
+
 // NO NEED TO IMPORT dvlpThree - it's added by rollup so it works with both THREE and dvlpThreee
 const { AmbientLight, Box3, Color: Color$1, Group, HemisphereLight, PerspectiveCamera, Scene, SpotLight, WebGLRenderer, OrbitControls } = dvlpThree;
 // import { OrbitControls } from 'dvlp-three/examples/jsm/controls/OrbitControls.js';
@@ -5822,7 +5874,7 @@ function setupNewObject(scene, obj, controls, domElement) {
 
   modelGroup = new Group();
   modelGroup.add(obj);
-  modelOptimized = obj.clone();
+  modelOptimized = obj.isSkinnedMesh ? skinnedMeshClone(obj) : obj.clone();
   if (modelOptimized) {
     modelOptimized.originalGeometry =
       modelOptimized.geometry;
@@ -5894,7 +5946,7 @@ function editorAction(editor) {
 
   const selected = editor.selected;
 
-  openOptimizer(selected.clone(), onDone);
+  openOptimizer(selected.isSkinnedMesh ? skinnedMeshClone(selected) : selected.clone(), onDone);
 
   function onDone(optimizedMesh) {
     optimizedMesh.position.copy(selected.position);

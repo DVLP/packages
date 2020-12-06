@@ -1,5 +1,6 @@
 import { meshSimplifier, createWorkers } from './MeshSimplifier';
 import { openOptimizer } from './OptimPopup';
+import { skinnedMeshClone } from './skinnedMeshClone';
 
 function editorAction(editor) {
   if (!editor.selected) {
@@ -11,7 +12,7 @@ function editorAction(editor) {
 
   const selected = editor.selected;
 
-  openOptimizer(selected.clone(), onDone);
+  openOptimizer(selected.isSkinnedMesh ? skinnedMeshClone(selected) : selected.clone(), onDone);
 
   function onDone(optimizedMesh) {
     optimizedMesh.position.copy(selected.position);
