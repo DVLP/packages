@@ -177,6 +177,7 @@ function createDataArrays(verexCount, faceCount, workersAmount) {
     reusingDataArrays !== null &&
     verexCount <= previousVertexCount
   ) {
+    console.time('reusing arrays')
     emptyOversizedContainerIndex(reusingDataArrays.facesView);
     emptyOversizedContainer(reusingDataArrays.specialCases);
     emptyOversizedContainerIndex(reusingDataArrays.specialCasesIndex);
@@ -193,11 +194,13 @@ function createDataArrays(verexCount, faceCount, workersAmount) {
     // zeroFill(reusingDataArrays.costTotalView);
     // zeroFill(reusingDataArrays.costMinView);
     // zeroFill(reusingDataArrays.neighbourCollapse);
-    zeroFill(reusingDataArrays.vertexWorkStatus);
-    zeroFill(reusingDataArrays.buildIndexStatus);
     // zeroFill(reusingDataArrays.faceMaterialIndexView);
-    zeroFill(reusingDataArrays.vertexNeighboursView);
-    zeroFill(reusingDataArrays.vertexFacesView);
+    reusingDataArrays.vertexWorkStatus.fill(0);
+    reusingDataArrays.buildIndexStatus.fill(0);
+
+    reusingDataArrays.vertexNeighboursView.fill(0);
+    reusingDataArrays.vertexFacesView.fill(0);
+    console.timeEnd('reusing arrays')
     return reusingDataArrays;
   }
 
@@ -480,7 +483,10 @@ function requestFreeWorkers(workers, verticesLength, onWorkersReady) {
     return;
   }
   const reservedWorkers = workers.filter(w => w.free).slice(0, workersAmount);
-  reservedWorkers.forEach(w => (w.free = false));
+  reservedWorkers.forEach(w => {
+    w.workStartTime = Date.now();
+    w.free = false;
+  });
   onWorkersReady(reservedWorkers);
 }
 
@@ -832,9 +838,9 @@ function createNewBufferGeometry(
     count++;
   }
 
-  const posLength = geometry.index
-    ? geo.attributes.position.array.length
-    : count * 3 * 3;
+  const vertexLength = geometry.index
+    ? geo.attributes.position.array.length / 3
+    : count * 3;
 
   const setAttribute = geo.setAttribute ? geo.setAttribute : geo.addAttribute;
 
@@ -860,8 +866,8 @@ function createNewBufferGeometry(
 
   console.log(
     'Result mesh ' + geometry.name + ' sizes:',
-    'positions',
-    posLength,
+    'vertices',
+    vertexLength,
     'normals',
     normals.length,
     'uv',
