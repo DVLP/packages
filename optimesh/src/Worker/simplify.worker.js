@@ -89,7 +89,6 @@ export default () => {
       modelSizeFactor: (1 / data.modelSize) * 10,
       maximumCost: data.maximumCost || 10
     };
-    console.log('Model size is', data.modelSize);
     dataArrayViews.collapseQueue = new Uint32Array(150);
 
     previousDataArrayViews = dataArrayViews;

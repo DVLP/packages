@@ -30,7 +30,9 @@ const MIN_VERTICES_PER_WORKER = 20000;
 // the bigger MIN_VERTICES_PER_WORKER is the bigger OVERSIZE_CONTAINER_CAPACITY should be, 10% size?
 const OVERSIZE_CONTAINER_CAPACITY = 2000;
 let reqId = 0;
-let totalAvailableWorkers = Math.min(5, navigator.hardwareConcurrency);
+
+// TODO: wtf is happening with multithreaded optimiser
+let totalAvailableWorkers = 1; //  Math.min(5, navigator.hardwareConcurrency);
 // if SAB is not available use only 1 worker per object to fully contain dataArrays that will be only available after using transferable objects
 const MAX_WORKERS_PER_OBJECT = typeof SharedArrayBuffer === 'undefined' ? 1 : navigator.hardwareConcurrency;
 const DISCARD_BELOW_VERTEX_COUNT = 400;
@@ -91,6 +93,9 @@ export function meshSimplifier(
   return new Promise((resolve, reject) => {
     if (discardSimpleGeometry(geometry)) {
       return resolve(geometry);
+    }
+    if (geometry.index) {
+      geometry = geometry.toNonIndexed();
     }
 
     preserveTexture =
@@ -292,9 +297,6 @@ function loadGeometryToDataArrays(geometry, workersAmount) {
     );
     loadGeometry(dataArrays, geometry);
   } else if (geometry.isBufferGeometry) {
-    if (geometry.index) {
-      // geometry = geometry.toNonIndexed();
-    }
     const positionsCount = geometry.index
       ? geometry.attributes.position.count
       : geometry.attributes.position.count;
