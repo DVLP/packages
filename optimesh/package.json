@@ -1,6 +1,6 @@
 {
   "name": "optimesh",
-  "version": "1.0.29",
+  "version": "1.0.30",
   "description": "OptiMesh reduces meshes resolution to optimize performance, memory usage and download size",
   "cdn": "https://cdn.jsdelivr.net/npm/optimesh@1.0.29/build/main.js",
   "main": "build/main.js",
