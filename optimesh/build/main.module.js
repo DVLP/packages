@@ -142,6 +142,8 @@ var simplify_worker = () => {
       throw new Error('starting range not divisible by 3');
     }
 
+    console.log('Build start and range', buildStart, buildRange);
+
     buildVertexNeighboursIndex(
       dataArrayViews.facesView,
       dataArrayViews.vertexNeighboursView,
@@ -211,7 +213,8 @@ var simplify_worker = () => {
           exitWithError(reqId, err);
           return;
         }
-        setTimeout(() => {
+
+        const cb = function () {
           computeLeastCostWhenReady(
             dataArrayViews,
             data,
@@ -222,11 +225,11 @@ var simplify_worker = () => {
             reqId,
             nextAttempt
           );
-        }, reattemptIntervalMs);
+        };
+        setTimeout(cb, reattemptIntervalMs);
         return;
       }
     }
-
     try {
       computeLeastCosts(dataArrayViews, start, end);
     } catch (e) {
@@ -244,6 +247,7 @@ var simplify_worker = () => {
       totalWorkers,
       reqId
     );
+    return;
   }
 
   function collapseWhenReady(
@@ -270,20 +274,19 @@ var simplify_worker = () => {
           exitWithError(reqId, err);
           return;
         }
-        setTimeout(
-          () =>
-            collapseWhenReady(
-              dataArrayViews,
-              data,
-              start,
-              end,
-              workerIndex,
-              totalWorkers,
-              reqId,
-              nextAttempt
-            ),
-          reattemptIntervalMs
-        );
+        const cb = function () {
+          collapseWhenReady(
+            dataArrayViews,
+            data,
+            start,
+            end,
+            workerIndex,
+            totalWorkers,
+            reqId,
+            nextAttempt
+          );
+        };
+        setTimeout(cb, reattemptIntervalMs);
         return;
       }
     }
@@ -301,7 +304,7 @@ var simplify_worker = () => {
     }
 
     let ifNoSABUseTransferable = undefined;
-    if (typeof SharedArrayBuffer === 'undefined') {
+    if (self.SharedArrayBuffer === undefined) {
       ifNoSABUseTransferable = Object.keys(dataArrayViews).reduce((acc, el) => {
         dataArrayViews[el].buffer && acc.push(dataArrayViews[el].buffer);
         return acc;
@@ -990,6 +993,10 @@ var simplify_worker = () => {
     if (curvature > 1) {
       return 1000;
     }
+
+    // crude approach in attempt to preserve borders
+    // though it seems not to be totally correct
+    var borders = 0;
     if (sideFaces[0] === -1 || sideFaces[1] === -1) {
       // we add some arbitrary cost for borders,
       //borders += 1;
@@ -998,18 +1005,18 @@ var simplify_worker = () => {
 
     var costUV = computeUVsCost(uId, vId, dataArrayViews);
     if (costUV > 3) {
-      return 1000;
+      return 1234;
     }
-    // var amt =
-    //   edgelengthSquared * curvature * curvature +
-    //   borders * borders +
-    //   costUV * costUV;
-
     var amt =
-      edgeCost + // compute bounding box from vertices first and use max size to affect edge length param
-      curvature * 10 + // float 0 - 10 what if curvature is less than 1 ? it will cause
-      // borders * borders +
-      (costUV + costUV); // integer - always > 1 // what if cost uv is less than 1 ? it will cause
+      edgelengthSquared * curvature * curvature +
+      borders * borders +
+      costUV * costUV;
+
+    // var amt =
+    //   edgeCost + // compute bounding box from vertices first and use max size to affect edge length param
+    //   curvature * 10 + // float 0 - 10 what if curvature is less than 1 ? it will cause
+    //   // borders * borders +
+    //   (costUV + costUV); // integer - always > 1 // what if cost uv is less than 1 ? it will cause
 
     return amt;
   }
@@ -2185,7 +2192,7 @@ const OVERSIZE_CONTAINER_CAPACITY$1 = 2000;
 let reqId = 0;
 
 // TODO: wtf is happening with multithreaded optimiser
-let totalAvailableWorkers = 1; //  Math.min(5, navigator.hardwareConcurrency);
+let totalAvailableWorkers = Math.min(5, navigator.hardwareConcurrency);
 // if SAB is not available use only 1 worker per object to fully contain dataArrays that will be only available after using transferable objects
 const MAX_WORKERS_PER_OBJECT = typeof SharedArrayBuffer === 'undefined' ? 1 : navigator.hardwareConcurrency;
 const DISCARD_BELOW_VERTEX_COUNT = 400;
