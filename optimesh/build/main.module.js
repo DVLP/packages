@@ -15,12 +15,6 @@ function emptyOversizedContainerIndex(containerIndex) {
   }
 }
 
-function zeroFill(arr) {
-  for (var i = 0; i < arr.length; i++) {
-    arr[i] = 0;
-  }
-}
-
 var simplify_worker = () => {
   let FIELDS_NO = 0; // do not change this will be set with a message from main thread
   let FIELDS_OVERSIZE = 0;
@@ -2189,7 +2183,9 @@ const MIN_VERTICES_PER_WORKER = 20000;
 // the bigger MIN_VERTICES_PER_WORKER is the bigger OVERSIZE_CONTAINER_CAPACITY should be, 10% size?
 const OVERSIZE_CONTAINER_CAPACITY$1 = 2000;
 let reqId = 0;
-let totalAvailableWorkers = Math.min(5, navigator.hardwareConcurrency);
+
+// TODO: wtf is happening with multithreaded optimiser
+let totalAvailableWorkers = 1; //  Math.min(5, navigator.hardwareConcurrency);
 // if SAB is not available use only 1 worker per object to fully contain dataArrays that will be only available after using transferable objects
 const MAX_WORKERS_PER_OBJECT = typeof SharedArrayBuffer === 'undefined' ? 1 : navigator.hardwareConcurrency;
 const DISCARD_BELOW_VERTEX_COUNT = 400;
@@ -2250,6 +2246,9 @@ function meshSimplifier(
     if (discardSimpleGeometry(geometry)) {
       return resolve(geometry);
     }
+    if (geometry.index) {
+      geometry = geometry.toNonIndexed();
+    }
 
     preserveTexture =
       preserveTexture && geometry.attributes.uv && geometry.attributes.uv.count;
@@ -2309,6 +2308,7 @@ function createDataArrays(verexCount, faceCount, workersAmount) {
     reusingDataArrays !== null &&
     verexCount <= previousVertexCount
   ) {
+    console.time('reusing arrays');
     emptyOversizedContainerIndex(reusingDataArrays.facesView);
     emptyOversizedContainer(reusingDataArrays.specialCases);
     emptyOversizedContainerIndex(reusingDataArrays.specialCasesIndex);
@@ -2325,11 +2325,13 @@ function createDataArrays(verexCount, faceCount, workersAmount) {
     // zeroFill(reusingDataArrays.costTotalView);
     // zeroFill(reusingDataArrays.costMinView);
     // zeroFill(reusingDataArrays.neighbourCollapse);
-    zeroFill(reusingDataArrays.vertexWorkStatus);
-    zeroFill(reusingDataArrays.buildIndexStatus);
     // zeroFill(reusingDataArrays.faceMaterialIndexView);
-    zeroFill(reusingDataArrays.vertexNeighboursView);
-    zeroFill(reusingDataArrays.vertexFacesView);
+    reusingDataArrays.vertexWorkStatus.fill(0);
+    reusingDataArrays.buildIndexStatus.fill(0);
+
+    reusingDataArrays.vertexNeighboursView.fill(0);
+    reusingDataArrays.vertexFacesView.fill(0);
+    console.timeEnd('reusing arrays');
     return reusingDataArrays;
   }
 
@@ -2421,7 +2423,6 @@ function loadGeometryToDataArrays(geometry, workersAmount) {
     );
     loadGeometry(dataArrays, geometry);
   } else if (geometry.isBufferGeometry) {
-    if (geometry.index) ;
     const positionsCount = geometry.index
       ? geometry.attributes.position.count
       : geometry.attributes.position.count;
@@ -2610,7 +2611,10 @@ function requestFreeWorkers(workers, verticesLength, onWorkersReady) {
     return;
   }
   const reservedWorkers = workers.filter(w => w.free).slice(0, workersAmount);
-  reservedWorkers.forEach(w => (w.free = false));
+  reservedWorkers.forEach(w => {
+    w.workStartTime = Date.now();
+    w.free = false;
+  });
   onWorkersReady(reservedWorkers);
 }
 
@@ -2962,9 +2966,9 @@ function createNewBufferGeometry(
     count++;
   }
 
-  const posLength = geometry.index
-    ? geo.attributes.position.array.length
-    : count * 3 * 3;
+  const vertexLength = geometry.index
+    ? geo.attributes.position.array.length / 3
+    : count * 3;
 
   const setAttribute = geo.setAttribute ? geo.setAttribute : geo.addAttribute;
 
@@ -2990,8 +2994,8 @@ function createNewBufferGeometry(
 
   console.log(
     'Result mesh ' + geometry.name + ' sizes:',
-    'positions',
-    posLength,
+    'vertices',
+    vertexLength,
     'normals',
     normals.length,
     'uv',
