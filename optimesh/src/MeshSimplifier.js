@@ -32,7 +32,7 @@ const OVERSIZE_CONTAINER_CAPACITY = 2000;
 let reqId = 0;
 
 // TODO: wtf is happening with multithreaded optimiser
-let totalAvailableWorkers = 1; //  Math.min(5, navigator.hardwareConcurrency);
+let totalAvailableWorkers = Math.min(5, navigator.hardwareConcurrency);
 // if SAB is not available use only 1 worker per object to fully contain dataArrays that will be only available after using transferable objects
 const MAX_WORKERS_PER_OBJECT = typeof SharedArrayBuffer === 'undefined' ? 1 : navigator.hardwareConcurrency;
 const DISCARD_BELOW_VERTEX_COUNT = 400;
