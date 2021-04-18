@@ -1180,17 +1180,12 @@ export default () => {
     removeVertexIfNonNeighbor(v3, v1, dataArrayViews);
     removeVertexIfNonNeighbor(v2, v3, dataArrayViews);
     removeVertexIfNonNeighbor(v3, v2, dataArrayViews);
-
-    // shrinkMaterialSpace(fid, dataArrayViews);
   }
 
   var moveToThisNormalValues = new Vector3();
-  var moveToSkinIndex = new Float32Array(4);
+  var moveToSkinIndex = new Uint32Array(4);
   var moveToSkinWeight = new Float32Array(4);
   var UVs = new Float32Array(2);
-  var normal1Temp = new Float32Array(3);
-  var normal2Temp = new Float32Array(3);
-  var normal3Temp = new Float32Array(3);
   var tmpVertices = new Uint32Array(500);
   var skipVertices = new Uint32Array(1000);
   var neighhbourId = 0;
@@ -1274,39 +1269,46 @@ export default () => {
           );
         }
 
-        // interpolate between normals
-        moveToThisNormalValues
-          .copy(
-            getFromAttributeObj(
-              dataArrayViews.faceNormalsView,
-              faceId,
-              vertIndexOnFace,
-              3,
-              v1Temp
-            )
-          )
-          .lerp(
-            getFromAttributeObj(
-              dataArrayViews.faceNormalsView,
-              faceId,
-              vertIndexOnFace2,
-              3,
-              v2Temp
-            ),
-            0.5
-          );
+        // do not interpolate just move to V2
+        getFromAttributeObj(
+          dataArrayViews.faceNormalsView,
+          faceId,
+          vertIndexOnFace2,
+          3,
+          moveToThisNormalValues
+        )
+        // moveToThisNormalValues
+        //   .copy(
+        //     getFromAttributeObj(
+        //       dataArrayViews.faceNormalsView,
+        //       faceId,
+        //       vertIndexOnFace,
+        //       3,
+        //       v1Temp
+        //     )
+        //   )
+        //   .lerp(
+        //     getFromAttributeObj(
+        //       dataArrayViews.faceNormalsView,
+        //       faceId,
+        //       vertIndexOnFace2,
+        //       3,
+        //       v2Temp
+        //     ),
+        //     0.5
+        //   );
 
         getFromAttribute(
           dataArrayViews.skinIndex,
           faceId,
-          vId,
+          vertIndexOnFace2,
           4,
           moveToSkinIndex
         );
         getFromAttribute(
           dataArrayViews.skinWeight,
           faceId,
-          vId,
+          vertIndexOnFace2,
           4,
           moveToSkinWeight
         );
@@ -1367,10 +1369,10 @@ export default () => {
           3
         );
 
-        // for (var j = 0; j < 4; j++) {
-        // setOnAttribute(dataArrayViews.skinIndex, faceId, vertIndexOnFace, j, moveToSkinIndex[j], 4);
-        // setOnAttribute(dataArrayViews.skinWeight, faceId, vertIndexOnFace, j, moveToSkinWeight[j], 4);
-        // }
+        for (var j = 0; j < 4; j++) {
+          setOnAttribute(dataArrayViews.skinIndex, faceId, vertIndexOnFace, j, moveToSkinIndex[j], 4);
+          setOnAttribute(dataArrayViews.skinWeight, faceId, vertIndexOnFace, j, moveToSkinWeight[j], 4);
+        }
       }
     }
 

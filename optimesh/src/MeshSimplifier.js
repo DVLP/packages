@@ -231,7 +231,7 @@ function createDataArrays(verexCount, faceCount, workersAmount) {
   const faceNormalsView = new Float32Array(faceNormalsAB);
   const facesUVsView = new Float32Array(faceUVsAB);
   const skinWeight = new Float32Array(new SAB(faceCount * 12 * 4));
-  const skinIndex = new Float32Array(new SAB(faceCount * 12 * 4));
+  const skinIndex = new Uint32Array(new SAB(faceCount * 12 * 4));
   const costStore = new Float32Array(costStoreAB);
   const costCountView = new Int16Array(new SAB(verexCount * 2));
   const costTotalView = new Float32Array(new SAB(verexCount * 4));
