@@ -1165,12 +1165,10 @@ var simplify_worker = () => {
     removeVertexIfNonNeighbor(v3, v1, dataArrayViews);
     removeVertexIfNonNeighbor(v2, v3, dataArrayViews);
     removeVertexIfNonNeighbor(v3, v2, dataArrayViews);
-
-    // shrinkMaterialSpace(fid, dataArrayViews);
   }
 
   var moveToThisNormalValues = new Vector3();
-  var moveToSkinIndex = new Float32Array(4);
+  var moveToSkinIndex = new Uint32Array(4);
   var moveToSkinWeight = new Float32Array(4);
   var UVs = new Float32Array(2);
   var tmpVertices = new Uint32Array(500);
@@ -1256,39 +1254,46 @@ var simplify_worker = () => {
           );
         }
 
-        // interpolate between normals
-        moveToThisNormalValues
-          .copy(
-            getFromAttributeObj(
-              dataArrayViews.faceNormalsView,
-              faceId,
-              vertIndexOnFace,
-              3,
-              v1Temp
-            )
-          )
-          .lerp(
-            getFromAttributeObj(
-              dataArrayViews.faceNormalsView,
-              faceId,
-              vertIndexOnFace2,
-              3,
-              v2Temp
-            ),
-            0.5
-          );
+        // do not interpolate just move to V2
+        getFromAttributeObj(
+          dataArrayViews.faceNormalsView,
+          faceId,
+          vertIndexOnFace2,
+          3,
+          moveToThisNormalValues
+        );
+        // moveToThisNormalValues
+        //   .copy(
+        //     getFromAttributeObj(
+        //       dataArrayViews.faceNormalsView,
+        //       faceId,
+        //       vertIndexOnFace,
+        //       3,
+        //       v1Temp
+        //     )
+        //   )
+        //   .lerp(
+        //     getFromAttributeObj(
+        //       dataArrayViews.faceNormalsView,
+        //       faceId,
+        //       vertIndexOnFace2,
+        //       3,
+        //       v2Temp
+        //     ),
+        //     0.5
+        //   );
 
         getFromAttribute(
           dataArrayViews.skinIndex,
           faceId,
-          vId,
+          vertIndexOnFace2,
           4,
           moveToSkinIndex
         );
         getFromAttribute(
           dataArrayViews.skinWeight,
           faceId,
-          vId,
+          vertIndexOnFace2,
           4,
           moveToSkinWeight
         );
@@ -1349,10 +1354,10 @@ var simplify_worker = () => {
           3
         );
 
-        // for (var j = 0; j < 4; j++) {
-        // setOnAttribute(dataArrayViews.skinIndex, faceId, vertIndexOnFace, j, moveToSkinIndex[j], 4);
-        // setOnAttribute(dataArrayViews.skinWeight, faceId, vertIndexOnFace, j, moveToSkinWeight[j], 4);
-        // }
+        for (var j = 0; j < 4; j++) {
+          setOnAttribute(dataArrayViews.skinIndex, faceId, vertIndexOnFace, j, moveToSkinIndex[j], 4);
+          setOnAttribute(dataArrayViews.skinWeight, faceId, vertIndexOnFace, j, moveToSkinWeight[j], 4);
+        }
       }
     }
 
@@ -2364,7 +2369,7 @@ function createDataArrays(verexCount, faceCount, workersAmount) {
   const faceNormalsView = new Float32Array(faceNormalsAB);
   const facesUVsView = new Float32Array(faceUVsAB);
   const skinWeight = new Float32Array(new SAB(faceCount * 12 * 4));
-  const skinIndex = new Float32Array(new SAB(faceCount * 12 * 4));
+  const skinIndex = new Uint32Array(new SAB(faceCount * 12 * 4));
   const costStore = new Float32Array(costStoreAB);
   const costCountView = new Int16Array(new SAB(verexCount * 2));
   const costTotalView = new Float32Array(new SAB(verexCount * 4));
