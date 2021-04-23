@@ -65,6 +65,7 @@ export default () => {
 
     const dataArrayViews = {
       costStore: data.costStore,
+      boneCosts: data.boneCosts,
       verticesView: data.verticesView,
       facesView: data.facesView,
       facesUVsView: data.facesUVsView,
@@ -970,6 +971,7 @@ export default () => {
       var faceId = getFaceIdByVertexAndIndex(uId, i, dataArrayViews);
       if (faceIdHasVertexId(faceId, vId, dataArrayViews.facesView)) {
         if (sideFaces[0] === -1) {
+          var boneCost = computeBoneCost(faceId, i, dataArrayViews);
           sideFaces[0] = faceId;
         } else {
           sideFaces[1] = faceId;
@@ -1033,7 +1035,7 @@ export default () => {
     //   // borders * borders +
     //   (costUV + costUV); // integer - always > 1 // what if cost uv is less than 1 ? it will cause
 
-    return amt;
+    return amt * boneCost;
   }
 
   function getVertexNeighbourByIndex(vId, neighbourIndex, dataArrayViews) {
@@ -1130,6 +1132,39 @@ export default () => {
     }
     UVcost += getUVCost(UVsAroundVertex);
     return UVcost;
+  }
+
+  const tempSkinIndex = new Uint32Array(4);
+  const tempSkinWeight = new Float32Array(4);
+  function computeBoneCost(faceId, vertIndexOnFace, dataArrayViews) {
+    let boneId = 0
+    let weight = 0
+    let boneCost = 0
+    let cost = 0
+
+    getFromAttribute(
+      dataArrayViews.skinIndex,
+      faceId,
+      vertIndexOnFace,
+      4,
+      tempSkinIndex
+    );
+    getFromAttribute(
+      dataArrayViews.skinWeight,
+      faceId,
+      vertIndexOnFace,
+      4,
+      tempSkinWeight
+    );
+    for (let i = 0; i < 4; i++) {
+      // boneId = dataArrayViews.skinIndex[uId * 4 + i]
+      // weight = dataArrayViews.skinWeight[uId * 4 + i]
+      boneId = tempSkinIndex[i]
+      weight = tempSkinWeight[i]
+      boneCost = dataArrayViews.boneCosts[boneId] || 1
+      cost += boneCost * weight
+    }
+    return cost || 1;
   }
 
   function removeVertex(vId, dataArrayViews) {

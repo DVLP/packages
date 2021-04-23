@@ -7,7 +7,7 @@ const { AmbientLight, Box3, Color, Group, HemisphereLight, PerspectiveCamera, Sc
 // import { OrbitControls } from 'dvlp-three/examples/jsm/controls/OrbitControls.js';
 
 var camera, ocontrols, modelGroup, modelOptimized, modelOptimizedGroup, modelMaxSize, modelMaxWidthDepth, fileLoader, close, done;
-
+var boneCosts = {}
 export function openOptimizer (model, onDone) {
   const webglContainer = createDOM(onDone);
   const { scene, controls } = init(webglContainer);
@@ -15,6 +15,10 @@ export function openOptimizer (model, onDone) {
 
   createWorkers();
   setupNewObject(scene, model, controls, webglContainer);
+}
+
+export function setBoneCosts (newBoneCosts) {
+  boneCosts = newBoneCosts
 }
 
 function createDOM () {
@@ -189,8 +193,13 @@ function recursivelyOptimize(model, controls) {
       (box.max.y - box.min.y) * model.scale.y,
       (box.max.z - box.min.z) * model.scale.z
     );
+    const geo = model.originalGeometry || model.geometry;
+    if (model.skeleton) {
+      geo.skeleton = model.skeleton
+      geo.boneCosts = boneCosts
+    }
     meshSimplifier(
-      model.originalGeometry || model.geometry,
+      geo,
       controls.optimizationLevel,
       controls.maximumCost,
       modelSize,

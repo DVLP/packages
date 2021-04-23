@@ -205,6 +205,7 @@ function createDataArrays(verexCount, faceCount, workersAmount) {
 
     reusingDataArrays.vertexNeighboursView.fill(0);
     reusingDataArrays.vertexFacesView.fill(0);
+    reusingDataArrays.boneCosts.fill(0);
     console.timeEnd('reusing arrays')
     return reusingDataArrays;
   }
@@ -240,6 +241,7 @@ function createDataArrays(verexCount, faceCount, workersAmount) {
   const vertexWorkStatus = new Uint8Array(new SAB(verexCount));
   const buildIndexStatus = new Uint8Array(new SAB(workersAmount));
   const faceMaterialIndexView = new Uint8Array(faceMaterialIndexAB);
+  const boneCosts = new Uint8Array(new SAB(200));
 
   // 10 elements, up to 9 neighbours per vertex + first number tells how many neighbours
   const vertexNeighboursView = new Uint32Array(vertexNeighboursAB);
@@ -274,6 +276,7 @@ function createDataArrays(verexCount, faceCount, workersAmount) {
     specialFaceCases: specialFaceCases,
     specialFaceCasesIndex: specialFaceCasesIndex,
     costStore,
+    boneCosts,
     costCountView,
     costTotalView,
     costMinView,
@@ -325,9 +328,17 @@ function loadBufferGeometry(dataArrays, geometry) {
     facesUVsView,
     skinWeight,
     skinIndex,
-    faceMaterialIndexView
+    faceMaterialIndexView,
+    boneCosts,
   } = dataArrays;
 
+  if (geometry.skeleton) {
+    Object.keys(geometry.boneCosts).forEach(boneName => {
+      const idx = geometry.skeleton.bones.findIndex(bone => bone.name === boneName)
+      if (!idx) return
+      boneCosts[idx] = geometry.boneCosts[boneName]
+    })
+  }
   // console.log('new indexed addresses', newVertexIndexByOld);
 
   // const vCount = positions.length / 3;
@@ -556,6 +567,7 @@ function sendWorkToWorkers(
         skinWeight: dataArrays.skinWeight,
         skinIndex: dataArrays.skinIndex,
         costStore: dataArrays.costStore,
+        boneCosts: dataArrays.boneCosts,
         faceMaterialIndexView: dataArrays.faceMaterialIndexView,
         vertexFacesView: dataArrays.vertexFacesView,
         vertexNeighboursView: dataArrays.vertexNeighboursView,

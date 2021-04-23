@@ -1,5 +1,5 @@
 import { meshSimplifier, createWorkers } from './MeshSimplifier';
-import { openOptimizer } from './OptimPopup';
+import { openOptimizer, setBoneCosts } from './OptimPopup';
 import { skinnedMeshClone } from './skinnedMeshClone';
 
 function editorAction(editor) {
@@ -40,8 +40,9 @@ const OptiMesh = {
   createWorkers,
   meshSimplifier,
   editorPlugin,
-  openOptimizer
+  openOptimizer,
+  setBoneCosts,
 };
 
 export default { OptiMesh };
-export { createWorkers, meshSimplifier, editorPlugin, openOptimizer };
+export { createWorkers, meshSimplifier, editorPlugin, openOptimizer, setBoneCosts };
