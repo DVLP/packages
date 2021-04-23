@@ -73,6 +73,7 @@ var optimesh = (function (exports) {
 
 	    const dataArrayViews = {
 	      costStore: data.costStore,
+	      boneCosts: data.boneCosts,
 	      verticesView: data.verticesView,
 	      facesView: data.facesView,
 	      facesUVsView: data.facesUVsView,
@@ -958,6 +959,7 @@ var optimesh = (function (exports) {
 	      var faceId = getFaceIdByVertexAndIndex(uId, i, dataArrayViews);
 	      if (faceIdHasVertexId(faceId, vId, dataArrayViews.facesView)) {
 	        if (sideFaces[0] === -1) {
+	          var boneCost = computeBoneCost(faceId, i, dataArrayViews);
 	          sideFaces[0] = faceId;
 	        } else {
 	          sideFaces[1] = faceId;
@@ -1021,7 +1023,7 @@ var optimesh = (function (exports) {
 	    //   // borders * borders +
 	    //   (costUV + costUV); // integer - always > 1 // what if cost uv is less than 1 ? it will cause
 
-	    return amt;
+	    return amt * boneCost;
 	  }
 
 	  function getVertexNeighbourByIndex(vId, neighbourIndex, dataArrayViews) {
@@ -1118,6 +1120,39 @@ var optimesh = (function (exports) {
 	    }
 	    UVcost += getUVCost(UVsAroundVertex);
 	    return UVcost;
+	  }
+
+	  const tempSkinIndex = new Uint32Array(4);
+	  const tempSkinWeight = new Float32Array(4);
+	  function computeBoneCost(faceId, vertIndexOnFace, dataArrayViews) {
+	    let boneId = 0;
+	    let weight = 0;
+	    let boneCost = 0;
+	    let cost = 0;
+
+	    getFromAttribute(
+	      dataArrayViews.skinIndex,
+	      faceId,
+	      vertIndexOnFace,
+	      4,
+	      tempSkinIndex
+	    );
+	    getFromAttribute(
+	      dataArrayViews.skinWeight,
+	      faceId,
+	      vertIndexOnFace,
+	      4,
+	      tempSkinWeight
+	    );
+	    for (let i = 0; i < 4; i++) {
+	      // boneId = dataArrayViews.skinIndex[uId * 4 + i]
+	      // weight = dataArrayViews.skinWeight[uId * 4 + i]
+	      boneId = tempSkinIndex[i];
+	      weight = tempSkinWeight[i];
+	      boneCost = dataArrayViews.boneCosts[boneId] || 1;
+	      cost += boneCost * weight;
+	    }
+	    return cost || 1;
 	  }
 
 	  function removeVertex(vId, dataArrayViews) {
@@ -2346,6 +2381,7 @@ var optimesh = (function (exports) {
 
 	    reusingDataArrays.vertexNeighboursView.fill(0);
 	    reusingDataArrays.vertexFacesView.fill(0);
+	    reusingDataArrays.boneCosts.fill(0);
 	    console.timeEnd('reusing arrays');
 	    return reusingDataArrays;
 	  }
@@ -2381,6 +2417,7 @@ var optimesh = (function (exports) {
 	  const vertexWorkStatus = new Uint8Array(new SAB(verexCount));
 	  const buildIndexStatus = new Uint8Array(new SAB(workersAmount));
 	  const faceMaterialIndexView = new Uint8Array(faceMaterialIndexAB);
+	  const boneCosts = new Uint8Array(new SAB(200));
 
 	  // 10 elements, up to 9 neighbours per vertex + first number tells how many neighbours
 	  const vertexNeighboursView = new Uint32Array(vertexNeighboursAB);
@@ -2415,6 +2452,7 @@ var optimesh = (function (exports) {
 	    specialFaceCases: specialFaceCases,
 	    specialFaceCasesIndex: specialFaceCasesIndex,
 	    costStore,
+	    boneCosts,
 	    costCountView,
 	    costTotalView,
 	    costMinView,
@@ -2466,9 +2504,17 @@ var optimesh = (function (exports) {
 	    facesUVsView,
 	    skinWeight,
 	    skinIndex,
-	    faceMaterialIndexView
+	    faceMaterialIndexView,
+	    boneCosts,
 	  } = dataArrays;
 
+	  if (geometry.skeleton) {
+	    Object.keys(geometry.boneCosts).forEach(boneName => {
+	      const idx = geometry.skeleton.bones.findIndex(bone => bone.name === boneName);
+	      if (!idx) return
+	      boneCosts[idx] = geometry.boneCosts[boneName];
+	    });
+	  }
 	  // console.log('new indexed addresses', newVertexIndexByOld);
 
 	  // const vCount = positions.length / 3;
@@ -2697,6 +2743,7 @@ var optimesh = (function (exports) {
 	        skinWeight: dataArrays.skinWeight,
 	        skinIndex: dataArrays.skinIndex,
 	        costStore: dataArrays.costStore,
+	        boneCosts: dataArrays.boneCosts,
 	        faceMaterialIndexView: dataArrays.faceMaterialIndexView,
 	        vertexFacesView: dataArrays.vertexFacesView,
 	        vertexNeighboursView: dataArrays.vertexNeighboursView,
@@ -5645,7 +5692,7 @@ var optimesh = (function (exports) {
 	// import { OrbitControls } from 'dvlp-three/examples/jsm/controls/OrbitControls.js';
 
 	var camera, ocontrols, modelGroup, modelOptimized, modelOptimizedGroup, modelMaxSize, modelMaxWidthDepth, fileLoader, close, done;
-
+	var boneCosts = {};
 	function openOptimizer (model, onDone) {
 	  const webglContainer = createDOM();
 	  const { scene, controls } = init(webglContainer);
@@ -5653,6 +5700,10 @@ var optimesh = (function (exports) {
 
 	  createWorkers();
 	  setupNewObject(scene, model, controls, webglContainer);
+	}
+
+	function setBoneCosts (newBoneCosts) {
+	  boneCosts = newBoneCosts;
 	}
 
 	function createDOM () {
@@ -5827,8 +5878,13 @@ var optimesh = (function (exports) {
 	      (box.max.y - box.min.y) * model.scale.y,
 	      (box.max.z - box.min.z) * model.scale.z
 	    );
+	    const geo = model.originalGeometry || model.geometry;
+	    if (model.skeleton) {
+	      geo.skeleton = model.skeleton;
+	      geo.boneCosts = boneCosts;
+	    }
 	    meshSimplifier(
-	      model.originalGeometry || model.geometry,
+	      geo,
 	      controls.optimizationLevel,
 	      controls.maximumCost,
 	      modelSize,
@@ -5993,7 +6049,8 @@ var optimesh = (function (exports) {
 	  createWorkers,
 	  meshSimplifier,
 	  editorPlugin,
-	  openOptimizer
+	  openOptimizer,
+	  setBoneCosts,
 	};
 
 	var main = { OptiMesh };
@@ -6003,6 +6060,7 @@ var optimesh = (function (exports) {
 	exports.editorPlugin = editorPlugin;
 	exports.meshSimplifier = meshSimplifier;
 	exports.openOptimizer = openOptimizer;
+	exports.setBoneCosts = setBoneCosts;
 
 	return exports;
 
